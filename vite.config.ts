@@ -11,6 +11,7 @@ const individuallyPackages = [
   'github.svg',
   'grid.svg',
   'mol.svg',
+  'three',
 ];
 
 const colorClassMapping: { [key: string]: string } = {
@@ -95,18 +96,17 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id: string) => {
+          for (const item of individuallyPackages) {
+            if (id.includes(item)) {
+              return item;
+            }
+          }
           if (id.includes('node_modules')) {
             return 'vendors';
             // If there will be more and more external packages referenced in the future,
             // the following approach can be considered.
             // const name = id.split('node_modules/')[1].split('/');
             // return name[0] == '.pnpm' ? name[1] : name[0];
-          } else {
-            for (const item of individuallyPackages) {
-              if (id.includes(item)) {
-                return item;
-              }
-            }
           }
         },
       },

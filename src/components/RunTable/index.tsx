@@ -94,6 +94,7 @@ const RunTable = ({
         <thead>
           <tr>
             <th />
+            <th>Type</th>
             {Array.from(sortFunctions.keys()).map((k) => (
               <th key={k} onClick={handleClick}>
                 {k}

@@ -98,3 +98,29 @@
 .runDate {
   color: var(--color-run-date);
 }
+
+.typeCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.model3dBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-run-table-thead);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s, background-color 0.2s;
+}
+
+.model3dBtn:hover {
+  opacity: 1;
+  background-color: var(--color-run-row-hover-background);
+}

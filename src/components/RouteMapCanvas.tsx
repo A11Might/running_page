@@ -206,7 +206,10 @@ export function RouteMapCanvas({
     let failed = false;
     const onError = (event: mapboxgl.ErrorEvent) => {
       const code = (event.error as Error & { status?: number }).status;
-      if (provider === 'mapbox' && (code === 401 || code === 403)) {
+      if (
+        provider === 'mapbox' &&
+        (code === 401 || code === 403 || code === 429)
+      ) {
         setProvider('carto');
       } else if (!styleReadyRef.current) {
         // Only fatal while the basemap style itself has not loaded; once the

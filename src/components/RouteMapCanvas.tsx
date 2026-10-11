@@ -208,7 +208,10 @@ export function RouteMapCanvas({
       const code = (event.error as Error & { status?: number }).status;
       if (provider === 'mapbox' && (code === 401 || code === 403)) {
         setProvider('carto');
-      } else {
+      } else if (!styleReadyRef.current) {
+        // Only fatal while the basemap style itself has not loaded; once the
+        // style is up, individual tile failures on a flaky CDN must not blank
+        // an otherwise rendered map behind an error overlay.
         failed = true;
         setStatus('error');
       }

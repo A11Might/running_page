@@ -26,6 +26,18 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: unknown, _info: ErrorInfo) {
     console.error('ErrorBoundary caught:', error);
+    // A new deploy invalidates hashed chunk files; an open tab from the
+    // previous deploy fails its lazy imports. Reload once to pick up the
+    // new shell (guarded so a persistently broken deploy cannot loop).
+    const message = error instanceof Error ? error.message : String(error);
+    const isChunkLoadFailure =
+      /Failed to fetch dynamically imported module/i.test(message) ||
+      /Importing a module script failed/i.test(message) ||
+      /error loading dynamically imported module/i.test(message);
+    if (isChunkLoadFailure && !sessionStorage.getItem('chunk-reloaded')) {
+      sessionStorage.setItem('chunk-reloaded', '1');
+      window.location.reload();
+    }
   }
 
   private handleRetry = () => {

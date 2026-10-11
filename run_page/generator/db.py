@@ -155,12 +155,17 @@ def update_or_create_activity(session, run_activity):
             activity.elapsed_time = run_activity.elapsed_time
             activity.type = run_activity.type
             activity.subtype = run_activity.subtype
-            activity.average_heartrate = run_activity.average_heartrate
+            if run_activity.average_heartrate is not None:
+                activity.average_heartrate = run_activity.average_heartrate
             activity.average_speed = float(run_activity.average_speed)
             activity.elevation_gain = current_elevation_gain
-            activity.summary_polyline = (
+            # keep the stored polyline when the new fetch has none (e.g. streams
+            # rate-limited), so a failed refresh never wipes existing track data
+            new_polyline = (
                 run_activity.map and run_activity.map.summary_polyline or ""
             )
+            if new_polyline:
+                activity.summary_polyline = new_polyline
     except Exception as e:  # noqa: BLE001
         print(f"something wrong with {run_activity.id}")
         print(str(e))

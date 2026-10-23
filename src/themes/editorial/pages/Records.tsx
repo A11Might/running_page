@@ -99,6 +99,41 @@ export function Records({
 
   const openDay = (a: Activity) => navigate(`a/${a.run_id}`);
 
+  // 比赛识别：名字含常见比赛关键词且距离达标（10 km+ 或爬升 500 m+）
+  const RACE_KEYWORDS = [
+    '比赛',
+    '竞赛',
+    '越野赛',
+    '马拉松',
+    '半马',
+    '全马',
+    'Race',
+    'race',
+    'RACE',
+    'Marathon',
+    'marathon',
+    'Triathlon',
+    'Ironman',
+    'Ultra',
+    'ultra',
+    '100K',
+    '100k',
+    '50K',
+    '50k',
+    'TNF',
+    'UTMB',
+  ];
+  const races = useMemo(
+    () =>
+      activities.filter((a) => {
+        const name = a.name ?? '';
+        if (!RACE_KEYWORDS.some((k) => name.includes(k))) return false;
+        return a.distance >= 10000 || (a.elevation_gain ?? 0) >= 500;
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activities]
+  );
+
   return (
     <>
       <section className="ed-fade-up" aria-label="Records">
@@ -241,6 +276,76 @@ export function Records({
           )}
         </div>
       </section>
+
+      {/* 比赛 */}
+      {races.length > 0 && (
+        <section className="ed-section" aria-label="比赛">
+          <div className="ed-section-head">
+            <h2 className="ed-section-title">比赛</h2>
+            <span className="ed-section-note">
+              按名字识别的比赛与长距离挑战
+            </span>
+          </div>
+          <div className="ed-races-grid">
+            {races.map((a) => {
+              const sport = sportOf(a);
+              return (
+                <button
+                  key={a.run_id}
+                  className="ed-race-card"
+                  style={{ color: 'inherit', font: 'inherit' }}
+                  onClick={() => openDay(a)}
+                >
+                  <span className="ed-race-thumb">
+                    <Thumb activity={a} width={210} height={150} />
+                  </span>
+                  <span
+                    className="name"
+                    style={{
+                      display: 'block',
+                      marginTop: 14,
+                      fontWeight: 700,
+                      fontSize: 16,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {a.name}
+                  </span>
+                  <span
+                    style={{
+                      display: 'block',
+                      marginTop: 3,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 11,
+                      color: '#8c8b85',
+                    }}
+                  >
+                    {localDate(a).toLocaleDateString('zh-CN')} ·{' '}
+                    <span
+                      className="ed-dot"
+                      style={{ background: sportColor(sport) }}
+                    />
+                    {SPORTS[sport].zh}
+                  </span>
+                  <span className="ed-race-stats">
+                    <span>
+                      <b>{activityKm(a.distance).toFixed(1)}</b> km
+                    </span>
+                    <span>
+                      <b>{formatInt(a.elevation_gain ?? 0)}</b> m 爬升
+                    </span>
+                    <span>
+                      <b>{fmtDuration(activitySeconds(a))}</b> 时长
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* 按运动 */}
       <section className="ed-section" aria-label="按运动统计">

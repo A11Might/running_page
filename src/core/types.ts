@@ -14,6 +14,8 @@ export interface Activity {
   elevation_gain: number | null;
   source: string;
   streak: number;
+  /** 降采样心率序列（bpm，null 表示该桶无读数），驱动会话时钟与心率图 */
+  hr_series?: (number | null)[] | null;
 }
 
 export type SportFilter = 'all' | 'Run';

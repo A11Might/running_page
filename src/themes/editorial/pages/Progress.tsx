@@ -88,6 +88,51 @@ export function Progress({ activities }: { activities: Activity[] }) {
     return `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}% vs ${focus - 1}`;
   };
 
+  // 「我还在出现吗？」逐年出勤：活跃天 / 出勤周 / 最长连续 / 最长间隔
+  const showup = useMemo(() => {
+    const today = new Date();
+    return years
+      .slice()
+      .sort((a, b) => b - a)
+      .map((year) => {
+        const acts = activities.filter((a) => activityYear(a) === year);
+        const t = totalsOf(acts);
+        const daysInYear =
+          year === today.getFullYear()
+            ? Math.floor(
+                (today.getTime() - new Date(year, 0, 1).getTime()) / 86400000
+              ) + 1
+            : Math.round(
+                (new Date(year + 1, 0, 1).getTime() -
+                  new Date(year, 0, 1).getTime()) /
+                  86400000
+              );
+        const weeks = new Set<string>();
+        for (const a of acts) {
+          const d = localDate(a);
+          const monday = new Date(d);
+          monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+          weeks.add(monday.toISOString().slice(0, 10));
+        }
+        const yearStart = new Date(year, 0, 1);
+        const end = year === thisYear ? today : new Date(year, 11, 31);
+        const weeksTotal = Math.max(
+          1,
+          Math.floor((end.getTime() - yearStart.getTime()) / (7 * 86400000)) + 1
+        );
+        const s = streaks(acts);
+        return {
+          year,
+          activeDays: t.activeDays,
+          daysInYear,
+          weeksOn: weeks.size,
+          weeksTotal,
+          streak: s.longestStreak,
+          gap: s.longestGap,
+        };
+      });
+  }, [activities, years, thisYear]);
+
   const sportsInBars = useMemo(() => {
     const set = new Set<SportKey>();
     for (const a of activities) set.add(sportOf(a));
@@ -212,6 +257,61 @@ export function Progress({ activities }: { activities: Activity[] }) {
             </span>
           </div>
           <MonthlyBarsChart activities={activities} focusYear={focus} />
+        </div>
+      </section>
+
+      <section className="ed-section" aria-label="我还在出现吗">
+        <div className="ed-chart-card">
+          <h3 className="ed-chart-title">我还在出现吗？</h3>
+          <p className="ed-chart-sub">坚持比强度重要 · 当前年份计到今天为止</p>
+          <div className="ed-showup-table" style={{ marginTop: 18 }}>
+            <div className="ed-showup-head">
+              <span>年份</span>
+              <span>活跃天数</span>
+              <span>出勤周数</span>
+              <span>连续</span>
+              <span>最长间隔</span>
+            </div>
+            {showup.map(
+              ({
+                year,
+                activeDays,
+                daysInYear,
+                weeksOn,
+                weeksTotal,
+                streak,
+                gap,
+              }) => {
+                const isFocus = year === focus;
+                return (
+                  <button
+                    key={year}
+                    className={`ed-showup-row ${isFocus ? 'is-focus' : ''}`}
+                    style={{ color: 'inherit', font: 'inherit' }}
+                    onClick={() => setFocus(year)}
+                    aria-pressed={isFocus}
+                  >
+                    <span className="ed-showup-year">{year}</span>
+                    <span className="ed-showup-bar">
+                      <i
+                        style={{
+                          width: `${(activeDays / daysInYear) * 100}%`,
+                        }}
+                      />
+                    </span>
+                    <span className="ed-showup-num">
+                      {activeDays} / {daysInYear}
+                    </span>
+                    <span className="ed-showup-num">
+                      {weeksOn} / {weeksTotal}
+                    </span>
+                    <span className="ed-showup-num">{streak} 天</span>
+                    <span className="ed-showup-num">{gap} 天</span>
+                  </button>
+                );
+              }
+            )}
+          </div>
         </div>
       </section>
 

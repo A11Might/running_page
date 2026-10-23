@@ -58,7 +58,7 @@ export function VertScene({
   const color = sportColor(sport);
 
   return (
-    <>
+    <div className="ed-vert" style={{ ['--route' as string]: color }}>
       <div className="ed-vert-box">
         <TerrainView
           ref={viewRef}
@@ -67,7 +67,7 @@ export function VertScene({
           view={flat ? 'flat' : 'oblique'}
           ariaLabel={`${activity.name} 的 3D 地形`}
           scrub={scrub}
-          palette={{ surface: '#23252b', ink: '#8f929a' }}
+          palette={{ surface: '#26282e', ink: '#8f929a' }}
           routePalette={{ route: color, halo: '#f0efec', ink: '#111214' }}
         />
       </div>
@@ -106,6 +106,6 @@ export function VertScene({
           label={`${activity.name} 高程剖面`}
         />
       </div>
-    </>
+    </div>
   );
 }

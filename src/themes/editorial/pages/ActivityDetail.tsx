@@ -14,7 +14,7 @@ import {
   ZONE_COLORS,
 } from '../lib/data';
 import { sortedByDate, trackOf } from '../lib/track';
-import { RoutePoster } from '../components/charts';
+import { HrChart, RoutePoster } from '../components/charts';
 import { SessionGlyph } from '../components/SessionTile';
 import { useVertScene } from '../components/VertScene';
 
@@ -32,6 +32,160 @@ const fmtDuration = (seconds: number): string => {
 };
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+const RECENT_KEY = 'ed_recent_views';
+
+function readRecent(): number[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]');
+    return Array.isArray(raw) ? raw.filter((x) => typeof x === 'number') : [];
+  } catch {
+    return [];
+  }
+}
+
+function pushRecent(runId: number) {
+  const next = [runId, ...readRecent().filter((id) => id !== runId)].slice(
+    0,
+    8
+  );
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {
+    /* 隐私模式下写入失败不影响浏览 */
+  }
+}
+
+/** 最近浏览药丸行（参照站详情页顶部） */
+function RecentPills({
+  activities,
+  currentId,
+  navigate,
+}: {
+  activities: Activity[];
+  currentId: number;
+  navigate: (path: string) => void;
+}) {
+  const recent = useMemo(() => {
+    return readRecent()
+      .filter((id) => id !== currentId)
+      .map((id) => activities.find((a) => a.run_id === id))
+      .filter((a): a is Activity => !!a)
+      .slice(0, 4);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activities, currentId]);
+  if (!recent.length) return null;
+  return (
+    <div className="ed-recent-pills">
+      {recent.map((a) => {
+        const sport = sportOf(a);
+        return (
+          <button
+            key={a.run_id}
+            className="ed-recent-pill"
+            style={{ color: 'inherit', font: 'inherit' }}
+            onClick={() => navigate(`a/${a.run_id}`)}
+          >
+            <span
+              className="ed-dot"
+              style={{ background: sportColor(sport) }}
+            />
+            {a.name || SPORTS[sport].zh}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** More like this：同运动、时间上最接近的几次 */
+function MoreLikeThis({
+  activities,
+  current,
+  navigate,
+}: {
+  activities: Activity[];
+  current: Activity;
+  navigate: (path: string) => void;
+}) {
+  const similar = useMemo(() => {
+    const t = localDate(current).getTime();
+    return activities
+      .filter(
+        (a) => a.run_id !== current.run_id && sportOf(a) === sportOf(current)
+      )
+      .sort(
+        (a, b) =>
+          Math.abs(localDate(a).getTime() - t) -
+          Math.abs(localDate(b).getTime() - t)
+      )
+      .slice(0, 4);
+  }, [activities, current]);
+  if (similar.length < 2) return null;
+  return (
+    <section className="ed-section" aria-label="相似活动">
+      <div className="ed-section-head">
+        <h2 className="ed-section-title">相似的活动</h2>
+        <span className="ed-section-note">
+          {SPORTS[sportOf(current)].zh} · 时间上最接近
+        </span>
+      </div>
+      <div className="ed-similar-grid">
+        {similar.map((a) => {
+          const sport = sportOf(a);
+          return (
+            <button
+              key={a.run_id}
+              className="ed-similar-card"
+              style={{ color: 'inherit', font: 'inherit' }}
+              onClick={() => navigate(`a/${a.run_id}`)}
+            >
+              <span className="ed-similar-glyph">
+                <SessionGlyph activity={a} size={150} glow />
+              </span>
+              <span className="tag">
+                <span
+                  className="ed-dot"
+                  style={{ background: sportColor(sport) }}
+                />
+                {SPORTS[sport].en}
+              </span>
+              <span
+                className="name"
+                style={{
+                  display: 'block',
+                  marginTop: 4,
+                  fontWeight: 700,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {a.name || SPORTS[sport].zh}
+              </span>
+              <span
+                className="meta"
+                style={{
+                  display: 'block',
+                  marginTop: 3,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  color: '#8c8b85',
+                }}
+              >
+                {localDate(a).toLocaleDateString('zh-CN')} ·{' '}
+                {activityKm(a.distance) >= 0.1
+                  ? `${activityKm(a.distance).toFixed(1)} km · `
+                  : ''}
+                {fmtDuration(activitySeconds(a))}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 export function ActivityDetail({
   activities,
@@ -56,6 +210,7 @@ export function ActivityDetail({
   useEffect(() => {
     if (activity) {
       document.title = `${activity.name || SPORTS[sportOf(activity)].zh} · Activities`;
+      pushRecent(activity.run_id);
       return () => {
         document.title = 'Activities';
       };
@@ -109,6 +264,12 @@ export function ActivityDetail({
       >
         ← 全部活动
       </button>
+
+      <RecentPills
+        activities={activities}
+        currentId={runId}
+        navigate={navigate}
+      />
 
       <div className="ed-detail">
         <div className="ed-poster">
@@ -240,6 +401,39 @@ export function ActivityDetail({
           </Suspense>
         )}
       </section>
+
+      {/* 心率曲线 */}
+      {(activity.hr_series?.filter((v) => v != null).length ?? 0) >= 6 && (
+        <section className="ed-section" aria-label="心率">
+          <div className="ed-chart-card">
+            <div className="ed-section-head" style={{ marginBottom: 14 }}>
+              <h2 className="ed-section-title" style={{ fontSize: 24 }}>
+                心率
+              </h2>
+              <span className="ed-section-note">
+                平均 {Math.round(activity.average_heartrate ?? 0)} · 峰值{' '}
+                {Math.max(
+                  ...(activity.hr_series ?? []).filter(
+                    (v): v is number => v != null
+                  )
+                )}{' '}
+                bpm
+              </span>
+            </div>
+            <HrChart activity={activity} color={color} />
+            <p className="ed-chart-sub" style={{ marginTop: 10 }}>
+              开始 → {fmtDuration(seconds)}
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* 相似活动 */}
+      <MoreLikeThis
+        activities={activities}
+        current={activity}
+        navigate={navigate}
+      />
 
       {/* 相邻活动 */}
       <div className="ed-neighbors">

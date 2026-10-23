@@ -676,6 +676,52 @@ export function RoutePoster({
   );
 }
 
+// ── 心率曲线（详情页）────────────────────────────────────────────────────────
+
+export function HrChart({
+  activity,
+  color,
+}: {
+  activity: Activity;
+  color: string;
+}) {
+  const series = activity.hr_series ?? [];
+  const vals = series.filter((v): v is number => v != null);
+  if (vals.length < 6) return null;
+  const lo = Math.min(...vals) - 8;
+  const hi = Math.max(...vals) + 8;
+  const W = 1200;
+  const H = 170;
+  const n = series.length;
+  const x = (i: number) => (i / (n - 1)) * W;
+  const y = (v: number) => 10 + (1 - (v - lo) / (hi - lo)) * (H - 26);
+
+  // 平滑折线（Catmull-Rom 简化为中点二次贝塞尔）
+  let line = `M${x(0).toFixed(1)} ${y(series[0] ?? vals[0]).toFixed(1)}`;
+  for (let i = 1; i < n; i++) {
+    const v = series[i];
+    if (v == null) continue;
+    const px = x(i - 1);
+    const py = y(series[i - 1] ?? v);
+    const cxp = (px + x(i)) / 2;
+    line += ` Q${cxp.toFixed(1)} ${py.toFixed(1)} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`;
+  }
+  const area = `${line} L${W} ${H - 8} L0 ${H - 8} Z`;
+
+  return (
+    <svg
+      className="ed-chart-svg"
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ marginTop: 0 }}
+      role="img"
+      aria-label={`${activity.name} 心率曲线，平均 ${Math.round(activity.average_heartrate ?? 0)} bpm`}
+    >
+      <path d={area} fill={color} opacity={0.18} />
+      <path d={line} fill="none" stroke={color} strokeWidth={2} />
+    </svg>
+  );
+}
+
 export function StatBadge({ value, label }: { value: string; label: string }) {
   return (
     <div className="ed-stat-cell">

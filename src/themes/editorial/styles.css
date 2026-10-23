@@ -797,6 +797,88 @@ a.ed-link {
   font-family: var(--font-mono);
 }
 
+/* ── 我还在出现吗（逐年出勤表）────────────────────────────────── */
+
+.ed-showup-table {
+  display: grid;
+  gap: 2px;
+}
+
+.ed-showup-head,
+.ed-showup-row {
+  display: grid;
+  grid-template-columns: 76px 1fr 130px 120px 90px 90px;
+  gap: 18px;
+  align-items: center;
+  padding: 12px 14px;
+}
+
+.ed-showup-head {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.ed-showup-row {
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radius-card);
+  text-align: left;
+  transition: background 0.12s ease;
+}
+
+.ed-showup-row:hover {
+  background: var(--tile-active);
+}
+
+.ed-showup-row.is-focus {
+  background: var(--band);
+}
+
+.ed-showup-year {
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.ed-showup-bar {
+  display: block;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--empty-cell);
+  overflow: hidden;
+}
+
+.ed-showup-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--bar-muted);
+}
+
+.ed-showup-row.is-focus .ed-showup-bar i {
+  background: var(--ink);
+}
+
+.ed-showup-num {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .ed-showup-head,
+  .ed-showup-row {
+    grid-template-columns: 56px 1fr 92px 78px 66px 66px;
+    gap: 10px;
+    padding: 10px 8px;
+  }
+}
+
 /* ── Records 卡片 ──────────────────────────────────────────────── */
 
 .ed-best-grid {
@@ -1087,6 +1169,138 @@ a.ed-link {
   color: var(--ink-muted);
 }
 
+/* ── 最近浏览药丸 ──────────────────────────────────────────────── */
+
+.ed-recent-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: -34px;
+}
+
+.ed-recent-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 15px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--raised);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.12s ease;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ed-recent-pill:hover {
+  border-color: var(--edge-strong);
+}
+
+/* ── 相似活动卡 ────────────────────────────────────────────────── */
+
+.ed-similar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.ed-similar-card {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 18px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease;
+  min-width: 0;
+}
+
+.ed-similar-card:hover {
+  border-color: var(--edge-strong);
+}
+
+.ed-similar-card .ed-similar-glyph {
+  display: flex;
+  justify-content: center;
+  padding: 14px 0 18px;
+}
+
+.ed-similar-card .ed-similar-glyph svg {
+  width: 130px;
+  height: 130px;
+}
+
+.ed-similar-card .tag {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* ── 比赛卡 ────────────────────────────────────────────────────── */
+
+.ed-races-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+.ed-race-card {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease;
+  min-width: 0;
+}
+
+.ed-race-card:hover {
+  border-color: var(--edge-strong);
+}
+
+.ed-race-card .ed-race-thumb {
+  display: block;
+  border-radius: 4px;
+  background: var(--band);
+  overflow: hidden;
+}
+
+.ed-race-card .ed-race-thumb svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ed-race-stats {
+  display: flex;
+  gap: 20px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.ed-race-stats b {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+
 .ed-neighbors {
   display: flex;
   justify-content: space-between;
@@ -1180,12 +1394,18 @@ a.ed-link {
   line-height: 2;
 }
 
-/* vert 库 CSS token 接入编辑主题配色 */
-.ed-vert-box {
-  --surface: #23252b;
-  --ink: #8f929a;
+/* vert 库 CSS token 接入编辑主题配色（README 的暗色示例）。
+   必须同时包住 TerrainView 与 ElevationProfile：剖面的爬升区间带、
+   刻度和爬升编号都读这些 token，缺了会用浅色默认值（白框 bug）。 */
+.ed-vert {
+  --surface: #26282e;
+  --surface-strong: #33363e;
+  --ink: #e6e8ec;
+  --muted: #a7aab2;
   --route: var(--sport-run, #d95926);
+  --vert-focus: var(--route);
   --white: #f0efec;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
 }
 
 /* ── 页脚 ──────────────────────────────────────────────────────── */

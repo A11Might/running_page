@@ -187,7 +187,12 @@ def run_strava_web_sync(jwt, days=7, only_run=False):
                 continue
             _sync_one(client, session, raw)
             total_fetched += 1
-        if page >= data.get("total", 1) // 20:
+        # Fetch until every page is covered. The old `page >= total // 20` bound
+        # under-fetched the final partial page (up to 19 oldest activities).
+        total = data.get("total", 0)
+        if total and page * 20 >= total:
+            break
+        if page >= 500:  # safety cap against a misbehaving endpoint
             break
         page += 1
         time.sleep(0.3)  # be gentle with rate limits

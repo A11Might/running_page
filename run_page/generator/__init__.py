@@ -127,9 +127,12 @@ class Generator:
 
         self.session.commit()
 
-    def load(self):
+    def load(self, include_zero_distance: bool = False):
         # if sub_type is not in the db, just add an empty string to it
-        query = self.session.query(Activity).filter(Activity.distance > 0.1)
+        query = self.session.query(Activity)
+        if not include_zero_distance:
+            # keep the historical running-page behaviour (skip empty records)
+            query = query.filter(Activity.distance > 0.1)
         if self.only_run:
             query = query.filter(Activity.type == "Run")
 

@@ -23,9 +23,8 @@ import sys
 import time
 import uuid
 
-import pytz
 import requests
-from config import BASE_TIMEZONE, JSON_FILE, SQL_FILE, run_map, start_point
+from config import JSON_FILE, SQL_FILE, run_map, start_point
 from generator.db import init_db, update_or_create_activity
 from stravaweblib import WebClient
 
@@ -128,12 +127,20 @@ class WebActivity:
 
 
 def _fmt_local_date(ts):
-    """Unix timestamp -> 'YYYY-MM-DD HH:MM:SS' in BASE_TIMEZONE."""
+    """Unix timestamp -> 'YYYY-MM-DD HH:MM:SS' (wall-clock local time).
+
+    Strava's web API encodes start_date_local_raw as the local wall-clock time
+    expressed as if it were UTC, so it must be formatted as-is; converting it
+    with astimezone(BASE_TIMEZONE) shifted local times a second +8h (double
+    conversion, e.g. a 19:49 evening run stored as 03:49 next day).
+    """
     if not ts:
         return ""
-    local_tz = pytz.timezone(BASE_TIMEZONE)
-    dt = datetime.datetime.fromtimestamp(int(ts), tz=datetime.UTC).astimezone(local_tz)
-    return dt.strftime("%Y-%m-%d %H:%M:%S")
+    return (
+        datetime.datetime.fromtimestamp(int(ts), tz=datetime.UTC).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+    )
 
 
 def _fetch_json(client, url, **extra_headers):
@@ -222,7 +229,8 @@ def _finalize(session, count):
     gen = Generator(SQL_FILE)
     # running_page's Generator exposes load() (with indoor-fix logic) instead of
     # loadForMapping(); both return the list of activity dicts to write to JSON.
-    activities_list = gen.load()
+    # Zero-distance sessions (gym workouts, stair stepper) are real records too.
+    activities_list = gen.load(include_zero_distance=True)
     with open(JSON_FILE, "w") as f:
         json.dump(activities_list, f, indent=0)
     print(f"\nDone: {count} activities synced.")

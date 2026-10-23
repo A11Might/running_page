@@ -75,6 +75,28 @@ def _polyline_encode(latlng_list):
     return out
 
 
+# HR series resolution: downsample the raw stream to this many buckets so the
+# JSON stays small (72 values ≈ 400 bytes per activity).
+HR_BUCKETS = 72
+
+
+def _downsample_hr(hr_stream):
+    """[bpm, ...] -> list of HR_BUCKETS ints (null for empty buckets)."""
+    if not hr_stream:
+        return None
+    vals = [h for h in hr_stream if h is not None]
+    if len(vals) < 10:
+        return None
+    n = len(hr_stream)
+    out = []
+    for i in range(HR_BUCKETS):
+        a = int(i * n / HR_BUCKETS)
+        b = max(a + 1, int((i + 1) * n / HR_BUCKETS))
+        window = [h for h in hr_stream[a:b] if h is not None]
+        out.append(round(sum(window) / len(window)) if window else None)
+    return out
+
+
 class WebActivity:
     """Lightweight adapter exposing the attributes update_or_create_activity needs.
 
@@ -109,6 +131,7 @@ class WebActivity:
 
         # Fields only resolvable from the streams payload.
         self.average_heartrate = None
+        self.hr_series = None
         self.summary_polyline = ""
         self.start_latlng = None
         if streams:
@@ -117,6 +140,7 @@ class WebActivity:
                 vals = [h for h in hr if h is not None]
                 if vals:
                     self.average_heartrate = sum(vals) / len(vals)
+                self.hr_series = _downsample_hr(hr)
             latlng = streams.get("latlng")
             if latlng:
                 self.summary_polyline = _polyline_encode(latlng)
@@ -221,6 +245,42 @@ def _sync_one(client, session, raw):
     sys.stdout.flush()
 
 
+def _backfill_hr(client, session):
+    """Fetch HR streams for stored activities that lack an hr_series.
+
+    One-off repair for data synced before hr_series existed; only touches
+    activities that already have an average_heartrate (i.e. a watch with a
+    strap), so gym entries without HR are skipped for good.
+    """
+    from generator.db import Activity as DbActivity
+
+    targets = (
+        session.query(DbActivity).filter(DbActivity.average_heartrate.isnot(None)).all()
+    )
+    todo = [a for a in targets if not a.hr_series]
+    print(f"backfilling HR series for {len(todo)}/{len(targets)} activities")
+    done = 0
+    for a in todo:
+        try:
+            streams = _fetch_streams(client, a.run_id)
+        except requests.exceptions.RequestException as e:
+            print(f"  streams fail {a.run_id}: {e}")
+            time.sleep(1)
+            continue
+        series = _downsample_hr(streams.get("heartrate"))
+        if series:
+            import json as _json
+
+            a.hr_series = _json.dumps(series, separators=(",", ":"))
+            session.commit()
+            done += 1
+        time.sleep(0.4)  # be gentle with rate limits
+        sys.stdout.write("." if series else "-")
+        sys.stdout.flush()
+    print(f"\nbackfilled {done} HR series")
+    return done
+
+
 def _finalize(session, count):
     from generator import Generator
 
@@ -249,5 +309,18 @@ if __name__ == "__main__":
         action="store_true",
         help="only sync Run activities",
     )
+    parser.add_argument(
+        "--backfill-hr",
+        dest="backfill_hr",
+        action="store_true",
+        help="skip the list sync; fetch HR streams for stored activities missing one",
+    )
     options = parser.parse_args()
+    if options.backfill_hr:
+        client = WebClient(jwt=options.jwt)
+        print("Web login ok")
+        session = init_db(SQL_FILE)
+        count = _backfill_hr(client, session)
+        _finalize(session, count)
+        sys.exit(0)
     run_strava_web_sync(options.jwt, days=options.days, only_run=options.only_run)

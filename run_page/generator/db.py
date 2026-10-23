@@ -1,4 +1,5 @@
 import datetime
+import json
 import random
 import string
 
@@ -17,6 +18,13 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 Base = declarative_base()
+
+
+def _hr_series_json(series):
+    """Serialize a downsampled HR series (list of ints/nulls) for the DB."""
+    if not series:
+        return None
+    return json.dumps(series, separators=(",", ":"))
 
 
 # random user name 8 letters
@@ -44,6 +52,7 @@ ACTIVITY_KEYS = [
     "average_heartrate",
     "average_speed",
     "elevation_gain",
+    "hr_series",
 ]
 
 
@@ -64,12 +73,21 @@ class Activity(Base):
     average_heartrate = Column(Float)
     average_speed = Column(Float)
     elevation_gain = Column(Float)
-    streak = None
+    # JSON array of HR values (bpm), downsampled to a fixed bucket count;
+    # nulls mark buckets without a reading. Powers the session clock zones
+    # and the per-session heart-rate chart.
+    hr_series = Column(String)
 
     def to_dict(self):
         out = {}
         for key in ACTIVITY_KEYS:
             attr = getattr(self, key)
+            if key == "hr_series" and attr:
+                try:
+                    out[key] = json.loads(attr)
+                    continue
+                except (TypeError, ValueError):
+                    pass
             if isinstance(attr, (datetime.timedelta, datetime.datetime)):
                 out[key] = str(attr)
             else:
@@ -145,6 +163,7 @@ def update_or_create_activity(session, run_activity):
                 summary_polyline=(
                     run_activity.map and run_activity.map.summary_polyline or ""
                 ),
+                hr_series=_hr_series_json(getattr(run_activity, "hr_series", None)),
             )
             session.add(activity)
             created = True
@@ -164,6 +183,9 @@ def update_or_create_activity(session, run_activity):
             new_polyline = run_activity.map and run_activity.map.summary_polyline or ""
             if new_polyline:
                 activity.summary_polyline = new_polyline
+            new_hr = _hr_series_json(getattr(run_activity, "hr_series", None))
+            if new_hr:
+                activity.hr_series = new_hr
     except Exception as e:  # noqa: BLE001
         print(f"something wrong with {run_activity.id}")
         print(str(e))

@@ -7,6 +7,10 @@ on:
         description: "Lookback days for strava_web sync (leave empty to use STRAVA_WEB_DAYS var or 7)"
         required: false
         default: ""
+      backfill_hr:
+        description: "Only backfill HR streams for stored activities (skip list sync)"
+        required: false
+        default: "false"
   schedule:
     - cron: "0 0 * * *"
   push:
@@ -152,10 +156,15 @@ jobs:
 
       # Strava web sync: uses the strava_remember_token JWT (web endpoints) instead of the
       # OAuth2 API, for when the API application is inactive. --days controls lookback.
+      # With backfill_hr=true it only fetches HR streams for stored activities.
       - name: Run sync Strava web script
         if: env.RUN_TYPE == 'strava_web'
         run: |
-          python run_page/strava_web_sync.py "${{ secrets.STRAVA_JWT }}" --days "${{ github.event.inputs.days || vars.STRAVA_WEB_DAYS || '7' }}"
+          if [ "${{ github.event.inputs.backfill_hr }}" = "true" ]; then
+            python run_page/strava_web_sync.py "${{ secrets.STRAVA_JWT }}" --backfill-hr
+          else
+            python run_page/strava_web_sync.py "${{ secrets.STRAVA_JWT }}" --days "${{ github.event.inputs.days || vars.STRAVA_WEB_DAYS || '7' }}"
+          fi
 
       # for garmin if you want generate 'tcx' you can add --tcx command in the args.
       - name: Run sync Garmin script

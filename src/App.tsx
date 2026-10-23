@@ -13,6 +13,7 @@ import { ThemeProvider } from './core/theme';
 const themes: Record<string, LazyExoticComponent<ComponentType>> = {
   dashboard: lazy(() => import('./themes/dashboard')),
   classic: lazy(() => import('./themes/classic')),
+  editorial: lazy(() => import('./themes/editorial')),
   // 在此处添加自定义主题，例如：
   // 'my-theme': lazy(() => import('./themes/my-theme')),
 };

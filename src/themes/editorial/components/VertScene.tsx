@@ -1,0 +1,111 @@
+import { useEffect, useRef, useState } from 'react';
+import { ElevationProfile, TerrainView, decodeScene } from '@geekplux/vert';
+import type { Scene } from '@geekplux/vert';
+import type { TerrainViewHandle } from '@geekplux/vert';
+import '@geekplux/vert/vert.css';
+import type { Activity } from '@/types';
+import { sportColor, sportOf } from '../lib/data';
+
+/**
+ * 从 public/scenes/<run_id>.scene 加载烘焙好的地形场景，
+ * 用 @geekplux/vert 渲染 3D 地形 + 高程剖面（可与路线海报联动 scrub）。
+ */
+export function useVertScene(runId: number): Scene | null | 'missing' {
+  const [state, setState] = useState<Scene | null | 'missing'>(null);
+  useEffect(() => {
+    let alive = true;
+    setState(null);
+    const base = import.meta.env.BASE_URL.endsWith('/')
+      ? import.meta.env.BASE_URL
+      : `${import.meta.env.BASE_URL}/`;
+    fetch(`${base}scenes/${runId}.scene`)
+      .then((res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        return res.arrayBuffer();
+      })
+      .then((buf) => {
+        if (!alive) return;
+        try {
+          setState(decodeScene(buf));
+        } catch {
+          setState('missing');
+        }
+      })
+      .catch(() => {
+        if (alive) setState('missing');
+      });
+    return () => {
+      alive = false;
+    };
+  }, [runId]);
+  return state;
+}
+
+export function VertScene({
+  activity,
+  scene,
+  scrub,
+  onScrub,
+}: {
+  activity: Activity;
+  scene: Scene;
+  scrub: number | null;
+  onScrub: (m: number | null) => void;
+}) {
+  const viewRef = useRef<TerrainViewHandle>(null);
+  const [flat, setFlat] = useState(false);
+  const sport = sportOf(activity);
+  const color = sportColor(sport);
+
+  return (
+    <>
+      <div className="ed-vert-box">
+        <TerrainView
+          ref={viewRef}
+          scene={scene}
+          exaggeration={1.6}
+          view={flat ? 'flat' : 'oblique'}
+          ariaLabel={`${activity.name} 的 3D 地形`}
+          scrub={scrub}
+          palette={{ surface: '#23252b', ink: '#8f929a' }}
+          routePalette={{ route: color, halo: '#f0efec', ink: '#111214' }}
+        />
+      </div>
+      <div className="ed-vert-controls">
+        <button
+          className="ed-btn ed-btn--ghost"
+          onClick={() => viewRef.current?.rotateBy(Math.PI / 5)}
+        >
+          旋转
+        </button>
+        <button
+          className="ed-btn ed-btn--ghost"
+          onClick={() => setFlat((v) => !v)}
+          aria-pressed={flat}
+        >
+          {flat ? '↗ 3D 视角' : '□ 平面图'}
+        </button>
+        <button
+          className="ed-btn ed-btn--ghost"
+          onClick={() => viewRef.current?.resetView()}
+        >
+          重置
+        </button>
+        <span className="ed-vert-marks" aria-hidden>
+          <span>○ 起点</span>
+          <span>◉ 终点</span>
+          <span>▲ 最高点</span>
+        </span>
+      </div>
+      <div style={{ marginTop: 18 }}>
+        <ElevationProfile
+          scene={scene}
+          scrub={scrub}
+          onScrub={onScrub}
+          height={130}
+          label={`${activity.name} 高程剖面`}
+        />
+      </div>
+    </>
+  );
+}

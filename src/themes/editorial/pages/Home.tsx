@@ -64,6 +64,10 @@ export function Home({
   }, [activities, thisYear]);
   const thisTotals = useMemo(() => totalsOf(thisPeriod), [thisPeriod]);
   const lastTotals = useMemo(() => totalsOf(lastPeriod), [lastPeriod]);
+  const lastSportCount = useMemo(
+    () => new Set(lastPeriod.map((a) => sportOf(a))).size,
+    [lastPeriod]
+  );
 
   const latest = useMemo(
     () => sortedByDate(activities).slice(-3).reverse(),
@@ -142,59 +146,70 @@ export function Home({
       {thisTotals.sessions > 0 && (
         <section className="ed-section" aria-label="今年至今">
           <div className="ed-focus-card">
-            <div>
+            <div className="ed-focus-left">
               <span className="ed-focus-tag">今年至今</span>
               <p className="ed-focus-year">{thisYear}</p>
               <p className="ed-focus-note">
-                对比 {thisYear - 1} 年同期（1 月 1 日 –{' '}
-                {new Date().getMonth() + 1} 月 {new Date().getDate()} 日）
+                对比 {thisYear - 1} 年同期
+                <br />
+                （1 月 1 日 – {new Date().getMonth() + 1} 月{' '}
+                {new Date().getDate()} 日）
               </p>
             </div>
-            <div>
-              <div className="ed-focus-grid">
-                <div className="ed-focus-stat">
-                  <span className="num">{Math.round(thisTotals.hours)}</span>
-                  <span className="label">小时</span>
-                  {lastTotals.hours > 0 && (
-                    <span className="delta">
-                      {delta(thisTotals.hours, lastTotals.hours)}
-                    </span>
-                  )}
-                </div>
-                <div className="ed-focus-stat">
-                  <span className="num">{thisTotals.sessions}</span>
-                  <span className="label">次数</span>
-                  {lastTotals.sessions > 0 && (
-                    <span className="delta">
-                      {delta(thisTotals.sessions, lastTotals.sessions)}
-                    </span>
-                  )}
-                </div>
-                <div className="ed-focus-stat">
-                  <span className="num">{thisTotals.activeDays}</span>
-                  <span className="label">活跃天</span>
-                  {lastTotals.activeDays > 0 && (
-                    <span className="delta">
-                      {delta(thisTotals.activeDays, lastTotals.activeDays)}
-                    </span>
-                  )}
-                </div>
-                <div className="ed-focus-stat">
-                  <span className="num">
-                    {new Set(thisPeriod.map((a) => sportOf(a))).size}
+            <div className="ed-focus-grid">
+              <div className="ed-focus-stat">
+                <span className="num">{Math.round(thisTotals.hours)}</span>
+                <span className="label">小时</span>
+                {lastTotals.hours > 0 && (
+                  <span className="delta">
+                    {delta(thisTotals.hours, lastTotals.hours)}
                   </span>
-                  <span className="label">种运动</span>
-                </div>
+                )}
               </div>
-              <div style={{ marginTop: 22 }}>
+              <div className="ed-focus-stat">
+                <span className="num">{thisTotals.sessions}</span>
+                <span className="label">次数</span>
+                {lastTotals.sessions > 0 && (
+                  <span className="delta">
+                    {delta(thisTotals.sessions, lastTotals.sessions)}
+                  </span>
+                )}
+              </div>
+              <div className="ed-focus-stat">
+                <span className="num">{thisTotals.activeDays}</span>
+                <span className="label">活跃天</span>
+                {lastTotals.activeDays > 0 && (
+                  <span className="delta">
+                    {delta(thisTotals.activeDays, lastTotals.activeDays)}
+                  </span>
+                )}
+              </div>
+              <div className="ed-focus-stat">
+                <span className="num">
+                  {new Set(thisPeriod.map((a) => sportOf(a))).size}
+                </span>
+                <span className="label">种运动</span>
+                {lastSportCount > 0 && (
+                  <span className="delta">
+                    {delta(
+                      new Set(thisPeriod.map((a) => sportOf(a))).size,
+                      lastSportCount
+                    )}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="ed-focus-bottom">
+              <div className="ed-focus-bargroup">
                 <SportBar activities={thisPeriod} />
                 <SportLegend activities={thisPeriod} />
               </div>
-              <div style={{ marginTop: 20 }}>
-                <button className="ed-btn" onClick={() => navigate('years')}>
-                  对比历年 →
-                </button>
-              </div>
+              <button
+                className="ed-btn ed-btn--outline"
+                onClick={() => navigate('years')}
+              >
+                对比历年 →
+              </button>
             </div>
           </div>
         </section>

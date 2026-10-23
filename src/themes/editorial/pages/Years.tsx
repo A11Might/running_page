@@ -182,7 +182,7 @@ export function Years({
       {/* 聚焦年份 */}
       <section className="ed-section" aria-label="年份聚焦">
         <div className="ed-focus-card">
-          <div>
+          <div className="ed-focus-left">
             <span className="ed-focus-tag">聚焦年份</span>
             <p className="ed-focus-year">{focus}</p>
             <p className="ed-focus-note">
@@ -190,7 +190,7 @@ export function Years({
             </p>
           </div>
           <div>
-            <div className="ed-focus-grid">
+            <div className="ed-focus-grid ed-focus-grid--row">
               <div className="ed-focus-stat">
                 <span className="num">{Math.round(focusTotals.hours)}</span>
                 <span className="label">小时</span>
@@ -277,12 +277,15 @@ export function Years({
               )}
             </div>
 
-            <div style={{ marginTop: 22 }}>
-              <SportBar activities={focusActs} />
-              <SportLegend activities={focusActs} />
-            </div>
-            <div style={{ marginTop: 20 }}>
-              <button className="ed-btn" onClick={() => navigate('calendar')}>
+            <div className="ed-focus-bottom">
+              <div className="ed-focus-bargroup">
+                <SportBar activities={focusActs} />
+                <SportLegend activities={focusActs} />
+              </div>
+              <button
+                className="ed-btn ed-btn--outline"
+                onClick={() => navigate('calendar')}
+              >
                 打开日历 →
               </button>
             </div>

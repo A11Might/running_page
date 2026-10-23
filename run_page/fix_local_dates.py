@@ -10,7 +10,6 @@ import datetime
 import sys
 
 import pytz
-
 from config import BASE_TIMEZONE, SQL_FILE
 from generator.db import Activity, init_db
 

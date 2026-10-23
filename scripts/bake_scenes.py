@@ -58,11 +58,7 @@ def bake_one(args_tuple):
         "w", suffix=".json", delete=False, dir=SCENES_DIR.parent / ".vert-tmp"
     ) as f:
         json.dump(
-            {
-                "points": [
-                    {"lat": lat, "lon": lng} for lat, lng in points
-                ]
-            },
+            {"points": [{"lat": lat, "lon": lng} for lat, lng in points]},
             f,
         )
         points_path = f.name
@@ -84,13 +80,17 @@ def bake_one(args_tuple):
                 "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
             ],
             cwd=ROOT,
+            check=False,
             capture_output=True,
             text=True,
             timeout=300,
         )
         if proc.returncode == 0:
             return run_id, "ok"
-        return run_id, f"fail: {(proc.stderr or proc.stdout).strip().splitlines()[-1] if (proc.stderr or proc.stdout).strip() else 'unknown'}"
+        return (
+            run_id,
+            f"fail: {(proc.stderr or proc.stdout).strip().splitlines()[-1] if (proc.stderr or proc.stdout).strip() else 'unknown'}",
+        )
     except subprocess.TimeoutExpired:
         return run_id, "fail: timeout"
     finally:
@@ -130,7 +130,9 @@ def main():
         futures = [pool.submit(bake_one, job) for job in jobs]
         for i, future in enumerate(as_completed(futures), 1):
             run_id, status = future.result()
-            results["ok" if status == "ok" else "skip" if status == "skip" else "fail"] += 1
+            results[
+                "ok" if status == "ok" else "skip" if status == "skip" else "fail"
+            ] += 1
             if status.startswith("fail"):
                 print(f"  [{i}/{len(jobs)}] {run_id} {status}")
             elif i % 20 == 0:
@@ -138,7 +140,9 @@ def main():
 
     shutil.rmtree(SCENES_DIR.parent / ".vert-tmp", ignore_errors=True)
     total = len(list(SCENES_DIR.glob("*.scene")))
-    print(f"\ndone: {results['ok']} baked, {results['skip']} skipped, {results['fail']} failed; {total} scenes total")
+    print(
+        f"\ndone: {results['ok']} baked, {results['skip']} skipped, {results['fail']} failed; {total} scenes total"
+    )
 
 
 if __name__ == "__main__":

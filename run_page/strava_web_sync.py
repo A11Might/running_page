@@ -136,10 +136,8 @@ def _fmt_local_date(ts):
     """
     if not ts:
         return ""
-    return (
-        datetime.datetime.fromtimestamp(int(ts), tz=datetime.UTC).strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
+    return datetime.datetime.fromtimestamp(int(ts), tz=datetime.UTC).strftime(
+        "%Y-%m-%d %H:%M:%S"
     )
 
 

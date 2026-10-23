@@ -161,9 +161,7 @@ def update_or_create_activity(session, run_activity):
             activity.elevation_gain = current_elevation_gain
             # keep the stored polyline when the new fetch has none (e.g. streams
             # rate-limited), so a failed refresh never wipes existing track data
-            new_polyline = (
-                run_activity.map and run_activity.map.summary_polyline or ""
-            )
+            new_polyline = run_activity.map and run_activity.map.summary_polyline or ""
             if new_polyline:
                 activity.summary_polyline = new_polyline
     except Exception as e:  # noqa: BLE001

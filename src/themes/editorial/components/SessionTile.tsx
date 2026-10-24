@@ -217,7 +217,8 @@ export const SessionGlyph = memo(function SessionGlyph({
   const sport = sportOf(activity);
   const color = sportColor(sport);
   const track = trackOf(activity);
-  const strokeWidth = hero ? 3 : 2.2;
+  // 参考站网格轨迹是发丝线；白描边只留详情页大图用
+  const strokeWidth = hero ? 3 : 1.2;
   const pad = hero ? 10 : 7;
 
   if (track && track.length >= 2) {
@@ -234,15 +235,17 @@ export const SessionGlyph = memo(function SessionGlyph({
         aria-label={`${activity.name} 路线`}
         style={{ color, overflow: 'visible' }}
       >
-        <path
-          d={d}
-          fill="none"
-          stroke="#f0efec"
-          strokeWidth={strokeWidth + 1}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity={0.9}
-        />
+        {hero && (
+          <path
+            d={d}
+            fill="none"
+            stroke="#f0efec"
+            strokeWidth={strokeWidth + 1}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.9}
+          />
+        )}
         <path
           d={d}
           fill="none"
@@ -256,16 +259,16 @@ export const SessionGlyph = memo(function SessionGlyph({
         <circle
           cx={startPt.lat}
           cy={startPt.lng}
-          r={hero ? 4.4 : 3}
+          r={hero ? 4.4 : 2}
           fill="#f0efec"
         />
         <circle
           cx={startPt.lat}
           cy={startPt.lng}
-          r={hero ? 6 : 4.2}
+          r={hero ? 6 : 3.1}
           fill="none"
           stroke="#f0efec"
-          strokeWidth={hero ? 1.4 : 1}
+          strokeWidth={hero ? 1.4 : 0.8}
           opacity={0.55}
         />
         {/* 终点：详情页大图才画（环线共用起终点时只画一个），网格瓦片只留起点 */}
@@ -448,7 +451,7 @@ export const RouteThumb = memo(function RouteThumb({
         d={d}
         fill="none"
         stroke={color}
-        strokeWidth={2.4}
+        strokeWidth={1.4}
         strokeLinecap="round"
         strokeLinejoin="round"
         transform={`translate(${(size - width) / 2} ${Math.max((size - height) / 2, 0)})`}

@@ -631,6 +631,12 @@ a.ed-link {
   align-items: baseline;
 }
 
+.ed-glyph-legend .glyph-example {
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+}
+
 .ed-glyph-legend .term {
   font-family: var(--font-mono);
   font-size: 11px;

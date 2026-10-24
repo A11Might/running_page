@@ -551,9 +551,14 @@ a.ed-link {
   appearance: none;
   width: 170px;
   height: 2px;
-  background: var(--edge-strong);
   border-radius: 1px;
   outline: none;
+  /* 划过部分高亮（--slider-fill 由组件按当前值注入） */
+  background: linear-gradient(
+    to right,
+    var(--ink) var(--slider-fill, 0%),
+    var(--edge-strong) var(--slider-fill, 0%)
+  );
 }
 
 .ed-slider::-webkit-slider-thumb {

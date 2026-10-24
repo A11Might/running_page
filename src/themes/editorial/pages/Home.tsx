@@ -348,6 +348,9 @@ export function Home({
               max={132}
               value={tileSize}
               onChange={(e) => setTileSize(+e.target.value)}
+              style={{
+                ['--slider-fill' as string]: `${((tileSize - 52) / 80) * 100}%`,
+              }}
             />
             {tileSize} px
           </label>

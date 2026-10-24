@@ -75,9 +75,11 @@ def _polyline_encode(latlng_list):
     return out
 
 
-# HR series resolution: downsample the raw stream to this many buckets so the
-# JSON stays small (72 values ≈ 400 bytes per activity).
-HR_BUCKETS = 72
+# HR series resolution: downsample the raw stream to this many buckets.
+# 240 keeps the real beat-to-beat variation visible (a 40-min session gets a
+# reading every ~10 s, like the reference site's per-second feel) at ~1.3 KB
+# per activity.
+HR_BUCKETS = 240
 
 
 def _downsample_hr(hr_stream):

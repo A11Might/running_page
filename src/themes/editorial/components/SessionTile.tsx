@@ -1,12 +1,6 @@
 import { memo, type ReactElement } from 'react';
 import type { Activity } from '@/types';
-import {
-  activitySeconds,
-  hrZone,
-  sportColor,
-  sportOf,
-  ZONE_COLORS,
-} from '../lib/data';
+import { activitySeconds, hrZone, sportColor, sportOf } from '../lib/data';
 import { trackOf, trackPath } from '../lib/track';
 
 interface GlyphProps {
@@ -98,7 +92,7 @@ function SessionClock({
       <path
         key={zi}
         d={subs.join('')}
-        fill={ZONE_COLORS[zi + 1]}
+        fill={color}
         opacity={ZONE_OPACITY[zi]}
       />
     ) : null
@@ -197,12 +191,12 @@ function SessionClock({
             cy={c}
             r={r}
             fill="none"
-            stroke="#b9b8b0"
+            stroke={color}
             strokeWidth={Math.max(c * 0.005, 0.3)}
             opacity={0.9}
           />
         ))}
-        <circle cx={c} cy={c} r={seedR} fill="#f0efec" />
+        <circle cx={c} cy={c} r={seedR} fill={color} />
       </g>
     </svg>
   );
@@ -240,6 +234,15 @@ export const SessionGlyph = memo(function SessionGlyph({
         aria-label={`${activity.name} 路线`}
         style={{ color, overflow: 'visible' }}
       >
+        <path
+          d={d}
+          fill="none"
+          stroke="#f0efec"
+          strokeWidth={strokeWidth + 1}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={0.9}
+        />
         <path
           d={d}
           fill="none"

@@ -1250,6 +1250,43 @@ a.ed-link {
   color: var(--ink-muted);
 }
 
+/* ── 会话时钟图例（详情页）─────────────────────────────────────── */
+
+.ed-clock-legend {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+  display: grid;
+  gap: 12px;
+}
+
+.ed-clock-legend .row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.ed-clock-legend .row svg {
+  flex: 0 0 22px;
+  margin-top: 2px;
+}
+
+.ed-clock-legend .row p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--ink-secondary);
+}
+
+.ed-clock-legend .row b {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-right: 8px;
+}
+
 /* ── 比赛卡 ────────────────────────────────────────────────────── */
 
 .ed-races-grid {

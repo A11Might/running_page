@@ -15,7 +15,7 @@ import {
 } from '../lib/data';
 import { sortedByDate, trackOf } from '../lib/track';
 import { HrChart, RoutePoster } from '../components/charts';
-import { SessionGlyph } from '../components/SessionTile';
+import { SessionClockLegend, SessionGlyph } from '../components/SessionTile';
 import { useVertScene } from '../components/VertScene';
 
 const VertScene = lazy(() =>
@@ -276,17 +276,20 @@ export function ActivityDetail({
           {hasRoute ? (
             <RoutePoster activity={activity} scrubFraction={scrubFraction} />
           ) : (
-            <div
-              style={{
-                padding: '40px 0',
-                display: 'flex',
-                justifyContent: 'center',
-              }}
-            >
-              <div style={{ width: 220 }}>
-                <SessionGlyph activity={activity} size={220} glow hero />
+            <>
+              <div
+                style={{
+                  padding: '36px 0',
+                  display: 'flex',
+                  justifyContent: 'center',
+                }}
+              >
+                <div style={{ width: 300 }}>
+                  <SessionGlyph activity={activity} size={300} glow hero />
+                </div>
               </div>
-            </div>
+              <SessionClockLegend color={color} />
+            </>
           )}
         </div>
 

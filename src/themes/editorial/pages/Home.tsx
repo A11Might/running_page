@@ -393,7 +393,7 @@ export function Home({
               <circle cx="13" cy="7" r="1.8" fill="#8c8b85" />
             </svg>
             <span className="term">会话时钟</span> 没有 GPS
-            的会话：外圈每满一小时一圈，圆心按心率区间着色。
+            的会话：一圈是整场活动，柱的高低亮暗按心率区间（Z1→Z5），内曲线是心率。
           </div>
         </div>
 

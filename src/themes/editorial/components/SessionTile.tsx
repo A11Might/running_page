@@ -1,12 +1,6 @@
 import { memo, type ReactElement } from 'react';
 import type { Activity } from '@/types';
-import {
-  activitySeconds,
-  hrZone,
-  sportColor,
-  sportOf,
-  ZONE_COLORS,
-} from '../lib/data';
+import { activitySeconds, hrZone, sportColor, sportOf } from '../lib/data';
 import { trackOf, trackPath } from '../lib/track';
 
 interface GlyphProps {
@@ -41,11 +35,11 @@ function sectorPath(
 }
 
 /**
- * 会话时钟 —— 无 GPS 会话的签名视觉（对齐参考站）：
- *  - 外圈「一小时一环」：环上的径向柱按该时刻心率高低伸缩（高低编码强度），
- *    颜色 = 心率区间
- *  - 中层的「脉搏」：心率随时间起伏的径向形状，波动幅度取该次活动的真实区间
- *  - 圆心的同心圆靶心
+ * 会话时钟 —— 无 GPS 会话的签名视觉（严格对齐参考站详情页的图例说明）：
+ *  - 外环：一圈 = 整场活动，从顶部顺时针；每片是一段时间，
+ *    心率区间越高（Z1→Z5）越高、越亮；颜色为运动色单色系
+ *  - 内曲线：同一圈上的心率，越高越靠外；淡圈是 70 bpm 基准
+ *  - 核心：种子圆点，每满一小时一圈
  */
 function SessionClock({
   activity,
@@ -58,159 +52,131 @@ function SessionClock({
 }) {
   const hours = Math.max(activitySeconds(activity) / 3600, 1 / 60);
   const c = size / 2;
-  const R = c - (hero ? 10 : 7);
+  const R = c - (hero ? 8 : 5);
   const arr = activity.hr_series ?? [];
-  const vals = arr.filter((v): v is number => v != null);
-  const avg = activity.average_heartrate;
-  const zone = hrZone(avg);
-  const zoneColor = zone ? ZONE_COLORS[zone] : color;
-  let lo = Infinity;
-  let hi = -Infinity;
-  for (const v of vals) {
-    if (v < lo) lo = v;
-    if (v > hi) hi = v;
-  }
-  const spread = vals.length ? Math.max(hi - lo, 6) : 0;
+  const hasHr = arr.filter((v) => v != null).length >= 6;
 
-  // ── 外圈径向柱：最多 3 环，每环细柱按时间铺满，柱高 = 心率在该次活动里的相对高低 ──
-  const SEG_PER_HOUR = 24;
-  const MAX_RINGS = 3;
-  const totalSegs = Math.max(1, Math.round(hours * SEG_PER_HOUR));
-  const rings = Math.min(Math.max(Math.ceil(hours), 1), MAX_RINGS);
-  const gap = hero ? 2.5 : 1.5;
-  const barMax = Math.max(Math.min(R * 0.13, (R - R * 0.42) / rings - gap), 2);
-  const barsPerRing = Math.ceil((totalSegs * 2) / rings); // 细柱：密度翻倍
-  const segArc = (Math.PI * 2) / barsPerRing;
-  const hrAt = (t: number): number | null => {
-    if (!arr.length) return null;
-    return arr[Math.min(arr.length - 1, Math.floor(t * arr.length))] ?? null;
+  // 心率 → Z1..Z5 内的相对位置（绝对刻度，与参考站一致：区间越高柱越高越亮）
+  const Z_LO = [55, 100, 120, 140, 160];
+  const Z_HI = [100, 120, 140, 160, 200];
+  const hrFrac = (hr: number | null): number | null => {
+    if (hr == null) return null;
+    const z = Math.min(4, Math.max(0, hrZone(hr) ? hrZone(hr)! - 1 : 0));
+    const wz = Math.min(Math.max((hr - Z_LO[z]) / (Z_HI[z] - Z_LO[z]), 0), 1);
+    return (z + wz) / 5;
   };
-  const segments: ReactElement[] = [];
-  let drawn = 0;
-  for (let ring = 0; ring < rings; ring++) {
-    const rIn = R - barMax - ring * (barMax + gap);
-    const bars = Math.min(barsPerRing, totalSegs * 2 - ring * barsPerRing);
-    // 底环：整圈淡环，未铺满的部分也看得出轨道
-    segments.push(
-      <circle
-        key={`base-${ring}`}
-        cx={c}
-        cy={c}
-        r={rIn + 0.5}
-        fill="none"
-        stroke="#1e1f23"
-        strokeWidth={1}
+
+  // ── 外环：一圈 = 整场，72 片（每桶一片），顺时针从顶部开始 ──
+  const N = Math.max(arr.length, 48);
+  const barMax = hero ? Math.max(R * 0.17, 9) : Math.max(R * 0.17, 4);
+  const rIn = R - barMax;
+  const segArc = (Math.PI * 2) / N;
+  const slices: ReactElement[] = [];
+  for (let i = 0; i < N; i++) {
+    const t = i / N;
+    const hr = arr.length
+      ? (arr[Math.min(arr.length - 1, Math.floor(t * arr.length))] ?? null)
+      : null;
+    const f = hrFrac(hr);
+    // 无心率数据：统一中等高度与亮度（不编造波动）
+    const ff = f ?? 0.5;
+    const h = barMax * (0.22 + 0.78 * ff);
+    const a0 = -Math.PI / 2 + i * segArc; // 顶部顺时针
+    slices.push(
+      <path
+        key={i}
+        d={sectorPath(
+          c,
+          c,
+          rIn,
+          rIn + Math.max(h, 1),
+          a0 + segArc * 0.18,
+          a0 + segArc * 0.82
+        )}
+        fill={color}
+        opacity={0.3 + 0.7 * ff}
       />
     );
-    for (let i = 0; i < bars; i++) {
-      const t = drawn / (totalSegs * 2);
-      const hr = hrAt(t);
-      const z = hr != null ? (hrZone(hr) ?? zone) : zone;
-      const zc = z ? ZONE_COLORS[z] : zoneColor;
-      let f: number;
-      if (hr != null && vals.length) {
-        f = (hr - lo) / spread;
-      } else {
-        // 无心率序列：确定性伪随机高低，不冒充真实数据
-        f =
-          0.45 +
-          0.3 *
-            Math.abs(
-              Math.sin(drawn * 2.7 + (activity.run_id % 13)) *
-                Math.cos(drawn * 1.3)
-            );
-      }
-      const h = barMax * (0.28 + 0.72 * Math.min(Math.max(f, 0), 1));
-      const a0 = -Math.PI / 2 + i * segArc;
-      segments.push(
-        <path
-          key={`${ring}-${i}`}
-          d={sectorPath(
-            c,
-            c,
-            rIn,
-            rIn + Math.max(h, 1.2),
-            a0 + segArc * 0.14,
-            a0 + segArc * 0.86
-          )}
-          fill={zc}
-          opacity={0.95}
-        />
-      );
-      drawn++;
-    }
   }
 
-  // ── 脉搏：心率随时间起伏的径向形状（直线多边形，波动取真实区间）──
-  const pulseR = R - rings * (barMax + gap) - (hero ? 8 : 4);
-  const PULSE_N = Math.max(arr.length * 2, 48);
-  const pulsePts: { x: number; y: number }[] = [];
+  // ── 内曲线：心率越高越靠外，70 bpm 淡圈为基准 ──
+  const HR_TOP = 200; // 满半径刻度
+  const HR_BASE = 70; // 淡圈基准
+  const pulseR = rIn - (hero ? 7 : 4);
+  const PULSE_N = Math.max(arr.length * 2, 64);
+  const rAt = (t: number): number => {
+    if (!hasHr) return pulseR * (HR_BASE / HR_TOP);
+    const x = t * arr.length;
+    const i0 = Math.min(arr.length - 1, Math.floor(x));
+    const i1 = Math.min(arr.length - 1, i0 + 1);
+    const v0 = arr[i0];
+    const v1 = arr[i1];
+    const v =
+      v0 == null && v1 == null
+        ? HR_BASE
+        : (v0 ?? v1 ?? HR_BASE) +
+          ((v1 ?? v0 ?? HR_BASE) - (v0 ?? v1 ?? HR_BASE)) * (x - i0);
+    return pulseR * Math.min(Math.max(v / HR_TOP, 0.12), 1);
+  };
+  const pulsePts: string[] = [];
   for (let i = 0; i < PULSE_N; i++) {
     const a = -Math.PI / 2 + (i / PULSE_N) * Math.PI * 2;
-    const t = i / PULSE_N;
-    let f: number;
-    if (vals.length >= 6) {
-      // 线性插值到 t，保留桶间的斜率起伏
-      const x = t * arr.length;
-      const i0 = Math.min(arr.length - 1, Math.floor(x));
-      const i1 = Math.min(arr.length - 1, i0 + 1);
-      const v0 = arr[i0] ?? lo;
-      const v1 = arr[i1] ?? v0;
-      const v = v0 + (v1 - v0) * (x - i0);
-      f = (v - lo) / spread;
-    } else {
-      f =
-        0.5 +
-        0.28 * Math.sin(t * Math.PI * 2 * 3 + (activity.run_id % 7)) +
-        0.18 * Math.sin(t * Math.PI * 2 * 5 + (activity.run_id % 11));
-    }
-    f = Math.min(Math.max(f, 0), 1);
-    pulsePts.push(polar(c, c, pulseR * (0.42 + 0.56 * f), a));
+    const p = polar(c, c, rAt(i / PULSE_N), a);
+    pulsePts.push(`${p.x.toFixed(2)} ${p.y.toFixed(2)}`);
   }
-  const pulseD =
-    pulsePts
-      .map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
-      .join(' ') + 'Z';
+  const pulseD = `M${pulsePts.join('L')}Z`;
+  const baseCircleR = pulseR * (HR_BASE / HR_TOP);
 
-  // ── 圆心靶心 ──
-  const dotR = hero ? 3.2 : 2.2;
+  // ── 核心：种子点 + 每满一小时一圈 ──
+  const dotR = hero ? 3 : 2;
+  const coreRings = Math.max(2, Math.round(hours));
+  const coreOuter = baseCircleR * 0.72;
+  const coreEls: ReactElement[] = [];
+  for (let k = coreRings; k >= 1; k--) {
+    coreEls.push(
+      <circle
+        key={k}
+        cx={c}
+        cy={c}
+        r={dotR + ((coreOuter - dotR) / coreRings) * k}
+        fill="none"
+        stroke={color}
+        strokeWidth={0.9}
+        opacity={0.5}
+      />
+    );
+  }
 
   return (
     <svg
       viewBox={`0 0 ${size} ${size}`}
       role="img"
       aria-label={`${activity.name} 会话时钟`}
-      style={{ color: zoneColor, overflow: 'visible' }}
+      style={{ color, overflow: 'visible' }}
     >
       <g className={glow ? 'ed-glyph-glow' : undefined}>
-        {segments}
+        {slices}
+        <circle
+          cx={c}
+          cy={c}
+          r={baseCircleR}
+          fill="none"
+          stroke={color}
+          strokeWidth={hero ? 1 : 0.7}
+          opacity={0.28}
+        />
         <path
           d={pulseD}
-          fill={zoneColor}
-          fillOpacity={0.2}
-          stroke={zoneColor}
-          strokeWidth={hero ? 1.6 : 1.1}
-          strokeOpacity={0.9}
+          fill={color}
+          fillOpacity={0.1}
+          stroke={color}
+          strokeWidth={hero ? 1.8 : 1.1}
+          strokeOpacity={0.95}
           strokeLinejoin="round"
         />
       </g>
-      <circle
-        cx={c}
-        cy={c}
-        r={dotR * 2.6}
-        fill="none"
-        stroke="#26272b"
-        strokeWidth={1}
-      />
-      <circle
-        cx={c}
-        cy={c}
-        r={dotR * 1.4}
-        fill="none"
-        stroke="#26272b"
-        strokeWidth={1}
-      />
-      <circle cx={c} cy={c} r={dotR} fill={zoneColor} />
+      {coreEls}
+      <circle cx={c} cy={c} r={dotR} fill={color} />
     </svg>
   );
 }
@@ -307,6 +273,89 @@ export const SessionGlyph = memo(function SessionGlyph({
 });
 
 /** 路线小缩略图（Latest / Records 卡片用） */
+/** 会话时钟图例（详情页用，对齐参考站的 OUTER RING / INNER CURVE / CORE 说明） */
+export function SessionClockLegend({ color }: { color: string }) {
+  return (
+    <div className="ed-clock-legend">
+      <div className="row">
+        <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
+          {Array.from({ length: 18 }).map((_, i) => {
+            const a = -Math.PI / 2 + (i / 18) * Math.PI * 2;
+            const f = 0.25 + 0.75 * Math.abs(Math.sin(i * 1.7));
+            const r0 = 6.5;
+            const r1 = r0 + 3.6 * f;
+            const p0 = polar(11, 11, r0, a + 0.05);
+            const p1 = polar(11, 11, r1, a + 0.05);
+            const p2 = polar(11, 11, r1, a + 0.24);
+            const p3 = polar(11, 11, r0, a + 0.24);
+            return (
+              <path
+                key={i}
+                d={`M${p0.x.toFixed(1)} ${p0.y.toFixed(1)}L${p1.x.toFixed(1)} ${p1.y.toFixed(1)}A${r1} ${r1} 0 0 1 ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}L${p3.x.toFixed(1)} ${p3.y.toFixed(1)}A${r0} ${r0} 0 0 0 ${p0.x.toFixed(1)} ${p0.y.toFixed(1)}Z`}
+                fill={color}
+                opacity={0.35 + f * 0.65}
+              />
+            );
+          })}
+        </svg>
+        <p>
+          <b>外环</b> 一圈是整场活动，从顶部顺时针。每一片是一段时间，
+          心率区间越高（Z1→Z5）越高、越亮。
+        </p>
+      </div>
+      <div className="row">
+        <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
+          <circle
+            cx="11"
+            cy="11"
+            r="6"
+            fill="none"
+            stroke={color}
+            strokeWidth="0.8"
+            opacity="0.35"
+          />
+          <path
+            d="M11 3.5 L12.6 6.2 L14.5 4.8 L15.8 8.5 L13 11 L15.2 13.6 L12.4 16.2 L9.8 14.4 L7.4 16.8 L5.8 13.2 L8.4 10.8 L6.2 8.2 L9 5.6 Z"
+            fill="none"
+            stroke={color}
+            strokeWidth="1.1"
+          />
+          <circle cx="11" cy="11" r="1.6" fill={color} />
+        </svg>
+        <p>
+          <b>内曲线</b> 同一圈上的心率，越高越靠外；淡圈是 70 bpm。
+        </p>
+      </div>
+      <div className="row">
+        <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
+          <circle
+            cx="11"
+            cy="11"
+            r="7"
+            fill="none"
+            stroke={color}
+            strokeWidth="0.9"
+            opacity="0.5"
+          />
+          <circle
+            cx="11"
+            cy="11"
+            r="4.6"
+            fill="none"
+            stroke={color}
+            strokeWidth="0.9"
+            opacity="0.5"
+          />
+          <circle cx="11" cy="11" r="2" fill={color} />
+        </svg>
+        <p>
+          <b>核心</b> 种子圆点，每满一小时一圈。
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export const RouteThumb = memo(function RouteThumb({
   activity,
   width = 92,

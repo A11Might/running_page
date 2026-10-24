@@ -11,8 +11,8 @@ import {
   sportColor,
   sportOf,
   SPORTS,
-  ZONE_COLORS,
 } from '../lib/data';
+import { parseMovingTime } from '@/core/hooks/useActivities';
 import { sortedByDate, trackOf } from '../lib/track';
 import { HrChart, RoutePoster } from '../components/charts';
 import { SessionClockLegend, SessionGlyph } from '../components/SessionTile';
@@ -127,7 +127,7 @@ function MoreLikeThis({
       <div className="ed-section-head">
         <h2 className="ed-section-title">相似的活动</h2>
         <span className="ed-section-note">
-          {SPORTS[sportOf(current)].zh} · 时间上最接近
+          时间上最接近的几次{SPORTS[sportOf(current)].zh}
         </span>
       </div>
       <div className="ed-similar-grid">
@@ -141,43 +141,24 @@ function MoreLikeThis({
               onClick={() => navigate(`a/${a.run_id}`)}
             >
               <span className="ed-similar-glyph">
-                <SessionGlyph activity={a} size={150} glow />
+                <SessionGlyph activity={a} size={120} glow />
               </span>
-              <span className="tag">
-                <span
-                  className="ed-dot"
-                  style={{ background: sportColor(sport) }}
-                />
-                {SPORTS[sport].en}
-              </span>
-              <span
-                className="name"
-                style={{
-                  display: 'block',
-                  marginTop: 4,
-                  fontWeight: 700,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {a.name || SPORTS[sport].zh}
-              </span>
-              <span
-                className="meta"
-                style={{
-                  display: 'block',
-                  marginTop: 3,
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 11,
-                  color: '#8c8b85',
-                }}
-              >
-                {localDate(a).toLocaleDateString('zh-CN')} ·{' '}
-                {activityKm(a.distance) >= 0.1
-                  ? `${activityKm(a.distance).toFixed(1)} km · `
-                  : ''}
-                {fmtDuration(activitySeconds(a))}
+              <span className="ed-similar-text">
+                <span className="tag">
+                  <span
+                    className="ed-dot"
+                    style={{ background: sportColor(sport) }}
+                  />
+                  {SPORTS[sport].en}
+                </span>
+                <span className="name">{a.name || SPORTS[sport].zh}</span>
+                <span className="meta">
+                  {localDate(a).toLocaleDateString('zh-CN')} ·{' '}
+                  {activityKm(a.distance) >= 0.1
+                    ? `${activityKm(a.distance).toFixed(1)} km · `
+                    : ''}
+                  {fmtDuration(activitySeconds(a))}
+                </span>
               </span>
             </button>
           );
@@ -240,6 +221,34 @@ export function ActivityDetail({
   const next = idx < ordered.length - 1 ? ordered[idx + 1] : null;
 
   const seconds = activitySeconds(activity);
+  const elapsedSeconds = activity.elapsed_time
+    ? parseMovingTime(activity.elapsed_time)
+    : 0;
+  const hrVals = (activity.hr_series ?? []).filter(
+    (v): v is number => v != null
+  );
+  const maxHr = hrVals.length ? Math.max(...hrVals) : null;
+  // 心率区间的时间分布：每个桶 = 总时长的 1/72（纯计算，无需 memo）
+  const ZONE_COLORS_RGB = [
+    '#66463d',
+    '#91503a',
+    '#bc5d38',
+    '#e27544',
+    '#ffa884',
+  ];
+  const hrArr = activity.hr_series ?? [];
+  const zoneMinutes = (() => {
+    if (!hrArr.length) return [] as { zone: number; minutes: number }[];
+    const totalMin = (elapsedSeconds || seconds) / 60;
+    const perBucket = totalMin / hrArr.length;
+    const tally = [0, 0, 0, 0, 0];
+    for (const v of hrArr) {
+      if (v == null) continue;
+      const z = hrZone(v);
+      if (z) tally[z - 1] += perBucket;
+    }
+    return tally.map((minutes, i) => ({ zone: i + 1, minutes }));
+  })();
   const pace = paceSecPerKm(activity);
   const date = localDate(activity);
   const scrubFraction =
@@ -288,7 +297,11 @@ export function ActivityDetail({
                   <SessionGlyph activity={activity} size={300} glow hero />
                 </div>
               </div>
-              <SessionClockLegend color={color} />
+              <SessionClockLegend
+                color={color}
+                hours={(elapsedSeconds || seconds) / 3600}
+                durationLabel={fmtDuration(elapsedSeconds || seconds)}
+              />
             </>
           )}
         </div>
@@ -302,76 +315,72 @@ export function ActivityDetail({
             {activity.name || SPORTS[sport].zh}
           </h1>
           <p className="ed-detail-date">
-            {date.getFullYear()} 年 {date.getMonth() + 1} 月 {date.getDate()} 日
-            · {WEEKDAYS[date.getDay()]} ·{' '}
+            {WEEKDAYS[date.getDay()]} {date.getFullYear()} 年{' '}
+            {date.getMonth() + 1} 月 {date.getDate()} 日 ·{' '}
             {String(date.getHours()).padStart(2, '0')}:
             {String(date.getMinutes()).padStart(2, '0')}
           </p>
 
-          <div className="ed-detail-stats">
-            {activity.distance >= 100 && (
-              <div className="ed-detail-stat">
-                <span className="num">
-                  {activityKm(activity.distance).toFixed(2)} km
-                </span>
-                <span className="label">距离</span>
-              </div>
-            )}
-            <div className="ed-detail-stat">
-              <span className="num">{fmtDuration(seconds)}</span>
-              <span className="label">时长</span>
+          <dl className="ed-figures">
+            <div className="ed-figures-row">
+              <dd>
+                {activity.distance >= 100
+                  ? `${activityKm(activity.distance).toFixed(2)} km`
+                  : '—'}
+              </dd>
+              <dt>距离</dt>
             </div>
-            {(activity.elevation_gain ?? 0) > 0 && (
-              <div className="ed-detail-stat">
-                <span className="num">
-                  {formatInt(activity.elevation_gain ?? 0)} m
-                </span>
-                <span className="label">爬升</span>
+            <div className="ed-figures-row">
+              <dd>{fmtDuration(elapsedSeconds || seconds)}</dd>
+              <dt>时长</dt>
+            </div>
+            <div className="ed-figures-row">
+              <dd>
+                {(activity.elevation_gain ?? 0) > 0
+                  ? `${formatInt(activity.elevation_gain ?? 0)} m`
+                  : '—'}
+              </dd>
+              <dt>爬升</dt>
+            </div>
+            {activity.average_heartrate != null && (
+              <div className="ed-figures-row">
+                <dd>{Math.round(activity.average_heartrate)} bpm</dd>
+                <dt>平均心率</dt>
               </div>
             )}
-            {activity.average_heartrate != null && (
-              <div className="ed-detail-stat">
-                <span className="num">
-                  {Math.round(activity.average_heartrate)} bpm
-                </span>
-                <span className="label">平均心率</span>
+            {maxHr != null && (
+              <div className="ed-figures-row">
+                <dd>{maxHr} bpm</dd>
+                <dt>最大心率</dt>
               </div>
             )}
             {pace && (
-              <div className="ed-detail-stat">
-                <span className="num">{fmtPace(pace)} /km</span>
-                <span className="label">平均配速</span>
+              <div className="ed-figures-row">
+                <dd>{fmtPace(pace)} /km</dd>
+                <dt>平均配速</dt>
               </div>
             )}
-            {activity.average_heartrate != null &&
-              hrZone(activity.average_heartrate) && (
-                <div className="ed-detail-stat">
-                  <span
-                    className="num"
-                    style={{
-                      color: ZONE_COLORS[hrZone(activity.average_heartrate)!],
-                    }}
-                  >
-                    Zone {hrZone(activity.average_heartrate)}
-                  </span>
-                  <span className="label">心率区间</span>
-                </div>
-              )}
-          </div>
+            {activity.calories ? (
+              <div className="ed-figures-row">
+                <dd>{formatInt(activity.calories)} kcal</dd>
+                <dt>能量</dt>
+              </div>
+            ) : null}
+          </dl>
 
           {hasRoute && scene && scene !== 'missing' && (
             <div className="ed-detail-actions">
               <a className="ed-btn" href="#vert-terrain">
-                在 Vert 中查看 ↗
+                Vert ↗
               </a>
-              <span className="hint">本次活动的 3D 地形就在下面。</span>
+              <span className="hint">3D 地形就在下面 · 高程剖面可以拖动。</span>
             </div>
           )}
         </div>
       </div>
 
       {/* 3D 地形 */}
-      <section className="ed-section" id="vert-terrain" aria-label="3D 地形">
+      <section className="ed-section" id="vert-terrain" aria-label="地形">
         {!hasRoute ? (
           <div className="ed-vert-empty">
             室内活动没有 GPS 轨迹，不渲染 3D 地形。
@@ -386,27 +395,35 @@ export function ActivityDetail({
             离线生成，只含地形高程网格与轨迹形状，不含任何坐标。
           </div>
         ) : (
-          <Suspense
-            fallback={
-              <div className="ed-vert-box">
-                <div className="vert-loading">正在加载 3D 地形…</div>
-              </div>
-            }
-          >
-            {scene && (
-              <VertScene
-                activity={activity}
-                scene={scene}
-                scrub={scrub}
-                onScrub={setScrub}
-              />
-            )}
-          </Suspense>
+          <>
+            <div className="ed-section-head">
+              <h2 className="ed-section-title" style={{ fontSize: 24 }}>
+                地形
+              </h2>
+              <span className="ed-section-note">拖动旋转 · 滚轮缩放</span>
+            </div>
+            <Suspense
+              fallback={
+                <div className="ed-vert-box">
+                  <div className="vert-loading">正在加载 3D 地形…</div>
+                </div>
+              }
+            >
+              {scene && (
+                <VertScene
+                  activity={activity}
+                  scene={scene}
+                  scrub={scrub}
+                  onScrub={setScrub}
+                />
+              )}
+            </Suspense>
+          </>
         )}
       </section>
 
       {/* 心率曲线 */}
-      {(activity.hr_series?.filter((v) => v != null).length ?? 0) >= 6 && (
+      {hrVals.length >= 6 && (
         <section className="ed-section" aria-label="心率">
           <div className="ed-chart-card">
             <div className="ed-section-head" style={{ marginBottom: 14 }}>
@@ -415,18 +432,28 @@ export function ActivityDetail({
               </h2>
               <span className="ed-section-note">
                 平均 {Math.round(activity.average_heartrate ?? 0)} · 峰值{' '}
-                {Math.max(
-                  ...(activity.hr_series ?? []).filter(
-                    (v): v is number => v != null
-                  )
-                )}{' '}
-                bpm
+                {maxHr} bpm
               </span>
             </div>
             <HrChart activity={activity} color={color} />
-            <p className="ed-chart-sub" style={{ marginTop: 10 }}>
-              开始 → {fmtDuration(seconds)}
-            </p>
+            <div className="ed-hr-axis">
+              <span>开始</span>
+              <span>{fmtDuration(elapsedSeconds || seconds)}</span>
+            </div>
+            {/* 心率区间的时间分布（对齐参考站的 Z1–Z5 分布行） */}
+            <div className="ed-zone-row">
+              {zoneMinutes.map(({ zone, minutes }, i) =>
+                minutes >= 0.5 ? (
+                  <span key={zone} className="ed-zone-chip">
+                    <span
+                      className="dot"
+                      style={{ background: ZONE_COLORS_RGB[i] }}
+                    />
+                    {Math.round(minutes)} 分钟 · Z{zone}
+                  </span>
+                ) : null
+              )}
+            </div>
           </div>
         </section>
       )}

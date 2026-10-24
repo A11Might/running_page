@@ -124,6 +124,8 @@ class WebActivity:
         # start_date_local_raw is a Unix timestamp -> local date string
         self.start_date_local = _fmt_local_date(raw.get("start_date_local_raw"))
         self.elevation_gain = raw.get("elevation_gain_raw") or 0.0
+        # Energy (kcal). Strava's web list exposes it as "calories".
+        self.calories = raw.get("calories") or None
         self.source = "strava"
 
         # average_speed (m/s). Guard against zero moving time.

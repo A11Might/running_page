@@ -43,6 +43,7 @@ ACTIVITY_KEYS = [
     "name",
     "distance",
     "moving_time",
+    "elapsed_time",
     "type",
     "subtype",
     "start_date",
@@ -53,6 +54,7 @@ ACTIVITY_KEYS = [
     "average_speed",
     "elevation_gain",
     "hr_series",
+    "calories",
 ]
 
 
@@ -77,6 +79,8 @@ class Activity(Base):
     # nulls mark buckets without a reading. Powers the session clock zones
     # and the per-session heart-rate chart.
     hr_series = Column(String)
+    # Energy expenditure in kcal (Strava web list payload).
+    calories = Column(Float)
 
     def to_dict(self):
         out = {}
@@ -164,6 +168,7 @@ def update_or_create_activity(session, run_activity):
                     run_activity.map and run_activity.map.summary_polyline or ""
                 ),
                 hr_series=_hr_series_json(getattr(run_activity, "hr_series", None)),
+                calories=getattr(run_activity, "calories", None),
             )
             session.add(activity)
             created = True
@@ -178,6 +183,9 @@ def update_or_create_activity(session, run_activity):
                 activity.average_heartrate = run_activity.average_heartrate
             activity.average_speed = float(run_activity.average_speed)
             activity.elevation_gain = current_elevation_gain
+            new_calories = getattr(run_activity, "calories", None)
+            if new_calories:
+                activity.calories = float(new_calories)
             # keep the stored polyline when the new fetch has none (e.g. streams
             # rate-limited), so a failed refresh never wipes existing track data
             new_polyline = run_activity.map and run_activity.map.summary_polyline or ""

@@ -274,7 +274,15 @@ export const SessionGlyph = memo(function SessionGlyph({
 
 /** 路线小缩略图（Latest / Records 卡片用） */
 /** 会话时钟图例（详情页用，对齐参考站的 OUTER RING / INNER CURVE / CORE 说明） */
-export function SessionClockLegend({ color }: { color: string }) {
+export function SessionClockLegend({
+  color,
+  hours,
+  durationLabel,
+}: {
+  color: string;
+  hours: number;
+  durationLabel: string;
+}) {
   return (
     <div className="ed-clock-legend">
       <div className="row">
@@ -299,8 +307,8 @@ export function SessionClockLegend({ color }: { color: string }) {
           })}
         </svg>
         <p>
-          <b>外环</b> 一圈是整场活动，从顶部顺时针。每一片是一段时间，
-          心率区间越高（Z1→Z5）越高、越亮。
+          <b>外环</b> 一圈是整场活动（{durationLabel}
+          ），从顶部顺时针。每一片是一段时间， 心率区间越高（Z1→Z5）越高、越亮。
         </p>
       </div>
       <div className="row">
@@ -349,7 +357,10 @@ export function SessionClockLegend({ color }: { color: string }) {
           <circle cx="11" cy="11" r="2" fill={color} />
         </svg>
         <p>
-          <b>核心</b> 种子圆点，每满一小时一圈。
+          <b>核心</b>
+          {hours < 1
+            ? '种子圆点：本次活动不足一小时。'
+            : `种子圆点，每满一小时一圈（共 ${Math.floor(hours)} 圈）。`}
         </p>
       </div>
     </div>

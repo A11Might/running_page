@@ -130,145 +130,177 @@ export function YearToDateChart({
   activities: Activity[];
   focusYear: number;
 }) {
-  const W = 1200;
-  const H = 420;
-  const PAD_L = 56;
-  const PAD_R = 96;
-  const PAD_T = 20;
-  const PAD_B = 34;
+  // 参考站规格：readout + 320px 图区（viewBox 1000×300 拉伸）+
+  // 52 个周悬停列驱动虚线游标；进行中的年份曲线止于今天
+  const W = 1000;
+  const H = 300;
   const years = useMemo(
     () => [...new Set(activities.map(activityYear))].sort((a, b) => a - b),
     [activities]
   );
-  const series = useMemo(
-    () => years.map((y) => ({ year: y, pts: cumulativeSeries(activities, y) })),
-    [activities, years]
-  );
-  const maxHours = Math.max(
-    ...series.map((s) => s.pts[s.pts.length - 1][1]),
-    10
-  );
-  const yMax = Math.ceil(maxHours / 40) * 40 || 40;
-  const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
-  const yearLen = (y: number) => (isLeap(y) ? 366 : 365);
-  const x = (day: number, year: number) =>
-    PAD_L + (day / yearLen(year)) * (W - PAD_L - PAD_R);
-  const y = (h: number) => PAD_T + (1 - h / yMax) * (H - PAD_T - PAD_B);
-
   const now = new Date();
   const todayDoy =
     Math.floor(
-      (now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000
+      (now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) /
+        86400000
     ) + 1;
+  const yearLen = (y: number) =>
+    (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 366 : 365;
 
-  // 结尾标签防重叠：自上而下（结束值降序 = 像素 y 升序）依次排开
-  const ends = series
-    .map((s) => ({ year: s.year, hours: s.pts[s.pts.length - 1][1] }))
-    .sort((a, b) => b.hours - a.hours);
-  const endLabelY = new Map<number, number>();
-  let prevLabelY = -Infinity;
-  for (const e of ends) {
-    const yy = Math.max(y(e.hours), prevLabelY + 16);
-    endLabelY.set(e.year, yy);
-    prevLabelY = yy;
-  }
+  const series = useMemo(
+    () =>
+      years.map((y) => {
+        let pts = cumulativeSeries(activities, y);
+        // 进行中的年份：截到今天，不拖到年底
+        if (y === now.getFullYear()) {
+          pts = pts.slice(0, Math.min(todayDoy + 1, pts.length));
+        }
+        return { year: y, pts };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activities, years]
+  );
+
+  const yMaxRaw = Math.max(
+    ...series.map((s) => s.pts[s.pts.length - 1]?.[1] ?? 0),
+    10
+  );
+  const yMax = Math.ceil(yMaxRaw / 20) * 20 || 20;
+  const xOf = (day: number, len: number) => (day / len) * W;
+  const yOf = (h: number) => (1 - h / yMax) * H;
+
+  // 某年某天的累计小时（阶梯取整）
+  const hoursAt = (year: number, day: number) => {
+    const s = series.find((x) => x.year === year);
+    if (!s || !s.pts.length) return 0;
+    const i = Math.min(Math.max(0, Math.round(day)), s.pts.length - 1);
+    return s.pts[i][1];
+  };
+
+  const [cursorDay, setCursorDay] = useState<number | null>(null);
+  const activeDay = cursorDay ?? todayDoy;
+  const activeLen = 366;
+  const activeDate = new Date(now.getFullYear(), 0, Math.round(activeDay) + 1);
+  const readout = `截至 ${activeDate.getMonth() + 1} 月 ${activeDate.getDate()} 日 — ${series
+    .slice()
+    .sort((a, b) => b.year - a.year)
+    .map((s) => `${s.year} ${Math.round(hoursAt(s.year, activeDay))} h`)
+    .join(' · ')}`;
+
+  const cursorX = xOf(activeDay, activeLen);
+
+  const monthStarts = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
 
   return (
-    <svg
-      className="ed-chart-svg"
-      viewBox={`0 0 ${W} ${H}`}
-      role="img"
-      aria-label={`年初至今累计小时曲线，聚焦 ${focusYear} 年`}
-    >
-      {/* 网格与轴 */}
-      {[0.25, 0.5, 0.75, 1].map((f) => (
-        <g key={f}>
-          <line
-            x1={PAD_L}
-            x2={W - PAD_R}
-            y1={y(yMax * f)}
-            y2={y(yMax * f)}
-            stroke="#1e1f23"
-            strokeWidth={1}
-          />
-          <text
-            x={PAD_L - 8}
-            y={y(yMax * f) + 3}
-            textAnchor="end"
-            fontSize={10}
-            fill="#55565c"
-          >
-            {Math.round(yMax * f)} h
-          </text>
-        </g>
-      ))}
-      {MONTHS_SHORT.map((m, i) => (
-        <text
-          key={m}
-          x={x(
-            Math.min(
-              329,
-              [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334][i]
-            ),
-            focusYear
-          )}
-          y={H - 10}
-          fontSize={10.5}
-          fill="#55565c"
-          textAnchor={i === 0 ? 'start' : 'middle'}
+    <div className="ed-ytd">
+      <p className="ed-ytd-readout" data-reserve={readout}>
+        {readout}
+      </p>
+      <div className="ed-ytd-plot">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          className="ed-ytd-svg"
+          role="img"
+          aria-label={`年初至今累计小时曲线，聚焦 ${focusYear} 年`}
         >
-          {m}
-        </text>
-      ))}
-      {/* 今日虚线 */}
-      {now.getFullYear() === focusYear && (
-        <line
-          x1={x(todayDoy, focusYear)}
-          x2={x(todayDoy, focusYear)}
-          y1={PAD_T}
-          y2={H - PAD_B}
-          stroke="#55565c"
-          strokeWidth={1}
-          strokeDasharray="3 4"
-        />
-      )}
-      {/* 每年一条阶梯线 */}
-      {series.map(({ year, pts }) => {
-        const focus = year === focusYear;
-        let d = '';
-        let prevX = x(pts[0][0], year);
-        let prevY = y(pts[0][1]);
-        d += `M${prevX.toFixed(1)} ${prevY.toFixed(1)}`;
-        for (let i = 1; i < pts.length; i++) {
-          const px = x(pts[i][0], year);
-          const py = y(pts[i][1]);
-          d += `H${px.toFixed(1)}V${py.toFixed(1)}`;
-          prevX = px;
-          prevY = py;
-        }
-        const end = pts[pts.length - 1][1];
-        return (
-          <g key={year}>
-            <path
-              d={d}
-              fill="none"
-              stroke={focus ? '#f0efec' : '#3a3b40'}
-              strokeWidth={focus ? 2.2 : 1.1}
+          {[0.25, 0.5, 0.75, 1].map((f) => (
+            <line
+              key={f}
+              x1={0}
+              x2={W}
+              y1={yOf(yMax * f)}
+              y2={yOf(yMax * f)}
+              className="grid"
             />
-            {focus && <circle cx={prevX} cy={prevY} r={3} fill="#f0efec" />}
-            <text
-              x={W - PAD_R + 10}
-              y={(endLabelY.get(year) ?? y(end)) + 3}
-              fontSize={11}
-              fill={focus ? '#f0efec' : '#55565c'}
-              fontWeight={focus ? 700 : 400}
-            >
-              {year} · {Math.round(end)} h
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+          ))}
+          <line x1={0} x2={W} y1={H} y2={H} className="base" />
+          {monthStarts.slice(1).map((d) => (
+            <line
+              key={d}
+              x1={xOf(d, activeLen)}
+              x2={xOf(d, activeLen)}
+              y1={0}
+              y2={H}
+              className="months"
+            />
+          ))}
+          {series.map(({ year, pts }) => {
+            const focus = year === focusYear;
+            const len = yearLen(year);
+            const d = pts
+              .map(
+                (p, i) =>
+                  `${i ? 'L' : 'M'}${xOf(p[0], len).toFixed(1)} ${yOf(p[1]).toFixed(1)}`
+              )
+              .join('');
+            return (
+              <path
+                key={year}
+                d={d}
+                className={focus ? 'focus' : 'others'}
+              />
+            );
+          })}
+          <line
+            x1={cursorX}
+            x2={cursorX}
+            y1={0}
+            y2={H}
+            className="cursor"
+          />
+        </svg>
+        <span className="ed-ytd-ymax">{yMax} h</span>
+        {(() => {
+          // 末端年份标签：按结束值降序排开，保持最小垂直间距
+          const sorted = series
+            .slice()
+            .sort(
+              (a, b) =>
+                b.pts[b.pts.length - 1][1] - a.pts[a.pts.length - 1][1]
+            );
+          let prevTop = -Infinity;
+          return sorted.map(({ year, pts }) => {
+            const last = pts[pts.length - 1];
+            const focus = year === focusYear;
+            const len = yearLen(year);
+            const xPct = (xOf(last[0], len) / W) * 100;
+            const yPct = (yOf(last[1]) / H) * 100;
+            const flip = xPct > 88;
+            const top = Math.max(yPct, prevTop + 6);
+            prevTop = top;
+            return (
+              <span
+                key={year}
+                className={`ed-ytd-end ${focus ? 'is-focus' : ''} ${flip ? 'is-flip' : ''}`}
+                style={{ left: `${xPct}%`, top: `${top}%` }}
+              >
+                {year}
+              </span>
+            );
+          });
+        })()}
+        <div className="ed-ytd-weeks" aria-hidden>
+          {Array.from({ length: 52 }, (_, w) => {
+            const day = (w + 0.5) * (366 / 52);
+            return (
+              <button
+                key={w}
+                type="button"
+                tabIndex={-1}
+                onMouseEnter={() => setCursorDay(day)}
+                onFocus={() => setCursorDay(day)}
+              />
+            );
+          })}
+        </div>
+      </div>
+      <div className="ed-ytd-months" onMouseLeave={() => setCursorDay(null)}>
+        {MONTHS_SHORT.map((m, i) => (
+          <span key={m}>{i === 0 ? '1 月' : m}</span>
+        ))}
+      </div>
+    </div>
   );
 }
 

@@ -281,6 +281,22 @@ export function CalendarPage({
             </div>
           </div>
 
+          {/* 图例（参考站：运动色 + 说明） */}
+          <div className="ed-heat-legend">
+            <ul aria-label="运动">
+              {[...new Set(yearActs.map((a) => sportOf(a)))].map((s) => (
+                <li key={s}>
+                  <span
+                    className="swatch"
+                    style={{ background: sportColor(s) }}
+                  />
+                  {SPORTS[s].zh}
+                </li>
+              ))}
+            </ul>
+            <p className="note">颜色 = 当天的主要运动 · 亮度 = 分钟数</p>
+          </div>
+
           <div className="ed-day-panel">
             <span className="ed-control">
               <button
@@ -405,6 +421,7 @@ function WhenClock({
   year: number;
 }) {
   const [readout, setReadout] = useState('悬停一个小时');
+  const [hoverHour, setHoverHour] = useState<number | null>(null);
 
   // 每小时：总数 + 各运动次数
   const hours = useMemo(() => {
@@ -430,6 +447,16 @@ function WhenClock({
     [hours]
   );
 
+  // 环带半径（56–150 中间偏内，参考站 ring 弧线位置）
+  const arcPath = (h: number): string => {
+    const r = 56 + (150 - 56) * 0.5;
+    const a0 = (h / 24) * Math.PI * 2;
+    const a1 = ((h + 1) / 24) * Math.PI * 2;
+    const p = (a: number) =>
+      `${(180 + r * Math.sin(a)).toFixed(2)} ${(180 - r * Math.cos(a)).toFixed(2)}`;
+    return `M${p(a0)}A${r} ${r} 0 0 1 ${p(a1)}`;
+  };
+
   // 楔形 clip-path（参考站 ae：外弧 r150 内弧 r56，各 7 个插值点）
   const wedge = (h: number): string => {
     const R_OUT = 150;
@@ -448,9 +475,54 @@ function WhenClock({
     <div className="ed-when">
       <p className="readout">{readout}</p>
       <div className="clock">
-        <svg viewBox="0 0 360 360" role="img" aria-label={`按开始小时统计，${year} 年：最忙的小时是 ${peak.hour}:00，共 ${peak.total} 次。`}>
+        <svg
+          viewBox="0 0 360 360"
+          role="img"
+          aria-label={`按开始小时统计，${year} 年：最忙的小时是 ${peak.hour}:00，共 ${peak.total} 次。`}
+        >
           <circle cx={180} cy={180} r={150} className="guide" />
           <circle cx={180} cy={180} r={56} className="guide" />
+          {/* 刻度：00 / 06 / 12 / 18 */}
+          {[0, 6, 12, 18].map((h) => {
+            const a = (h / 24) * Math.PI * 2;
+            const r = 150 + 14;
+            return (
+              <text
+                key={h}
+                x={180 + r * Math.sin(a)}
+                y={180 - r * Math.cos(a) + 4}
+                className="hour-label"
+                textAnchor="middle"
+              >
+                {String(h).padStart(2, '0')}
+              </text>
+            );
+          })}
+          {/* 峰值小时的弧线 */}
+          {peak.total > 0 && (
+            <path
+              d={arcPath(peak.hour)}
+              className="peak-ring"
+              fill="none"
+              strokeLinecap="butt"
+            />
+          )}
+          {/* 悬停小时的弧线 */}
+          {hoverHour != null && (
+            <path
+              d={arcPath(hoverHour)}
+              className="hover-ring"
+              fill="none"
+              strokeLinecap="butt"
+            />
+          )}
+          {/* 中心：峰值次数 + 小时 */}
+          <text x={180} y={178} textAnchor="middle" className="peak-num">
+            {peak.total}
+          </text>
+          <text x={180} y={198} textAnchor="middle" className="peak-sub">
+            {String(peak.hour).padStart(2, '0')}:00 最忙
+          </text>
         </svg>
         {hours.map((s) => {
           const label = `${String(s.hour).padStart(2, '0')}:00`;
@@ -469,14 +541,35 @@ function WhenClock({
               style={{ clipPath: wedge(s.hour) }}
               title={tip}
               aria-label={tip}
-              onMouseEnter={() => setReadout(tip)}
-              onFocus={() => setReadout(tip)}
-              onMouseLeave={() => setReadout('悬停一个小时')}
-              onBlur={() => setReadout('悬停一个小时')}
+              onMouseEnter={() => {
+                setHoverHour(s.hour);
+                setReadout(tip);
+              }}
+              onFocus={() => {
+                setHoverHour(s.hour);
+                setReadout(tip);
+              }}
+              onMouseLeave={() => {
+                setHoverHour(null);
+                setReadout('悬停一个小时');
+              }}
+              onBlur={() => {
+                setHoverHour(null);
+                setReadout('悬停一个小时');
+              }}
             />
           );
         })}
       </div>
+      {/* 图例：本年出现过的运动 */}
+      <ul className="ed-when-legend">
+        {[...new Set(activities.map((a) => sportOf(a)))].map((s) => (
+          <li key={s}>
+            <span className="ed-dot" style={{ background: sportColor(s) }} />
+            {SPORTS[s].zh}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -683,7 +683,7 @@ a.ed-link {
 .ed-tile-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--tile), 1fr));
-  gap: 14px var(--tile-gap);
+  gap: 8px;
 }
 
 .ed-tile {
@@ -694,7 +694,7 @@ a.ed-link {
   cursor: pointer;
   border: none;
   background: none;
-  padding: 6px 2px;
+  padding: 6px 4px 8px;
   border-radius: var(--radius-card);
   transition: background 0.12s ease;
 }
@@ -754,9 +754,15 @@ a.ed-link {
   justify-content: center;
 }
 
-.ed-latest-card .thumb svg {
-  width: 92px;
-  height: 76px;
+/* 参考站最近卡：104×104 图形（覆盖旧 thumb 约束） */
+.ed-latest-card .thumb.ed-latest-glyph {
+  flex: 0 0 auto;
+  width: 104px;
+  height: 104px;
+}
+.ed-latest-card .ed-latest-glyph svg {
+  width: 100%;
+  height: auto;
 }
 
 .ed-latest-card .tag {
@@ -2379,4 +2385,328 @@ table.ed-matrix {
 }
 .ed-site-footer .social a:hover {
   color: var(--ink);
+}
+
+
+/* ══════════ 反馈修复批次（参考站实测规格）══════════ */
+
+/* ── 页头：H1 + 下划线年份 tab（参考站 tabs）──────────────────── */
+
+.ed-page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+}
+.ed-tabs {
+  display: flex;
+  gap: 2px 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.ed-tabs::-webkit-scrollbar {
+  display: none;
+}
+.ed-tab {
+  min-height: 32px;
+  padding: 0 4px 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+.ed-tab.is-on {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+  font-weight: 700;
+}
+.ed-tab:not(.is-on):hover {
+  color: var(--ink);
+}
+
+/* ── 响应式统计条（一行 N 格，窄屏自动换行）──────────────────── */
+
+.ed-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--stat-min, 170px), 1fr));
+  gap: 2px;
+  margin: 26px 0 0;
+}
+.ed-stat-strip .ed-stat-tile dd {
+  font-size: var(--stat-fig, 40px);
+}
+
+/* ── 聚焦卡补充：按运动小时条 + 胶囊链接（参考站 1qwcl + pill）── */
+
+.ed-focus-card2 .mix-row {
+  flex: 1 1 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+}
+.ed-focus-card2--home .big-year {
+  font-size: 96px;
+  letter-spacing: -2.9px;
+}
+.ed-mixbar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 320px;
+}
+.ed-mixbar {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ed-mixbar .seg {
+  min-width: 3px;
+}
+.ed-mixbar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+.ed-mixbar-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ed-pill-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 14px;
+  border: 1px solid #3a3b40;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease-out;
+}
+.ed-pill-link:hover {
+  border-color: var(--ink-muted);
+}
+
+/* ── Home 最近卡：104px 图形（参考站 _glyph_1td9i）────────────── */
+
+.ed-latest-glyph {
+  flex: 0 0 auto;
+  width: 104px;
+  height: 104px;
+}
+
+/* ── 年初至今交互图（参考站 gwagq）────────────────────────────── */
+
+.ed-ytd {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  margin-top: 14px;
+}
+.ed-ytd-readout {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+  min-height: 1.7em;
+}
+.ed-ytd-plot {
+  position: relative;
+  height: 320px;
+}
+.ed-ytd-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.ed-ytd-svg .grid {
+  stroke: var(--hairline);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.ed-ytd-svg .base {
+  stroke: #3a3b40;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.ed-ytd-svg .months {
+  stroke: #1e1f23;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.ed-ytd-svg .others {
+  stroke: #3a3b40;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+.ed-ytd-svg .focus {
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+.ed-ytd-svg .cursor {
+  stroke: var(--ink-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3, 3;
+  vector-effect: non-scaling-stroke;
+}
+.ed-ytd-ymax {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-muted);
+  pointer-events: none;
+}
+.ed-ytd-end {
+  position: absolute;
+  margin-left: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--ink-muted);
+  pointer-events: none;
+}
+.ed-ytd-end.is-focus {
+  color: var(--ink);
+  font-weight: 700;
+}
+.ed-ytd-end.is-flip {
+  margin-left: 0;
+  transform: translate(calc(-100% - 12px));
+}
+.ed-ytd-weeks {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.ed-ytd-weeks button {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: crosshair;
+}
+.ed-ytd-months {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+.ed-ytd-months span {
+  text-align: center;
+}
+
+/* ── 我何时运动：峰值弧 + 中心数字 + 悬停弧 + 刻度 + 图例 ─────── */
+
+.ed-when .hour-label {
+  fill: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.ed-when .peak-ring {
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.ed-when .hover-ring {
+  stroke: var(--ink-muted);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.ed-when .peak-num {
+  fill: var(--ink);
+  font-size: 30px;
+  font-weight: 800;
+  font-family: var(--font-sans);
+}
+.ed-when .peak-sub {
+  fill: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.ed-when-legend {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+.ed-when-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── 日历热力图图例（参考站 bq0vw）────────────────────────────── */
+
+.ed-heat-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+.ed-heat-legend ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+.ed-heat-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ed-heat-legend .swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.ed-heat-legend .note {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
 }

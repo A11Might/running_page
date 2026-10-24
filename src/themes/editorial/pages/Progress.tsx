@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Activity } from '@/types';
-import { SiteFooter } from '../components/sections';
+import { SiteFooter, StatStrip } from '../components/sections';
 import {
   activitySeconds,
   activityYear,
@@ -164,11 +164,13 @@ export function Progress({ activities }: { activities: Activity[] }) {
               这里不需要实验室，一切都来自手表。
             </p>
           </div>
-          <div className="ed-pills" style={{ paddingBottom: 14 }}>
+          <div className="ed-tabs" role="group" aria-label="聚焦年份">
             {years.map((y) => (
               <button
                 key={y}
-                className={`ed-pill ${y === focus ? 'is-on' : ''}`}
+                type="button"
+                aria-pressed={y === focus}
+                className={`ed-tab ${y === focus ? 'is-on' : ''}`}
                 onClick={() => setFocus(y)}
               >
                 {y}
@@ -177,56 +179,46 @@ export function Progress({ activities }: { activities: Activity[] }) {
           </div>
         </div>
 
-        <div className="ed-stats-row">
-          <div className="ed-stat-cell">
-            <span className="ed-stat-num">{Math.round(totals.hours)}</span>
-            <span className="ed-stat-label">小时</span>
-            <span className="ed-stat-delta">
-              <span className="up">
-                {delta(totals.hours, prevTotals.hours)}
-              </span>
-              <br />
-              {dateNote}
-            </span>
-          </div>
-          <div className="ed-stat-cell">
-            <span className="ed-stat-num">{totals.sessions}</span>
-            <span className="ed-stat-label">次数</span>
-            <span className="ed-stat-delta">
-              <span className="up">
-                {delta(totals.sessions, prevTotals.sessions)}
-              </span>
-            </span>
-          </div>
-          <div className="ed-stat-cell">
-            <span className="ed-stat-num">{totals.activeDays}</span>
-            <span className="ed-stat-label">活跃天</span>
-            <span className="ed-stat-delta">
-              <span className="up">
-                {delta(totals.activeDays, prevTotals.activeDays)}
-              </span>
-            </span>
-          </div>
-          <div className="ed-stat-cell">
-            <span className="ed-stat-num">
-              {weeksInfo.withSession} / {weeksInfo.totalWeeks}
-            </span>
-            <span className="ed-stat-label">有运动的周</span>
-            <span className="ed-stat-delta">
-              {Math.round((weeksInfo.withSession / weeksInfo.totalWeeks) * 100)}
-              % 的周
-            </span>
-          </div>
-          <div className="ed-stat-cell">
-            <span className="ed-stat-num">{longestStreak} 天</span>
-            <span className="ed-stat-label">最长连续</span>
-            <span className="ed-stat-delta">最长间隔 {longestGap} 天</span>
-          </div>
-          <div className="ed-stat-cell">
-            <span className="ed-stat-num">{avg12.toFixed(1)} h/月</span>
-            <span className="ed-stat-label">12 个月平均</span>
-          </div>
-        </div>
+        <StatStrip
+          label="今年累计"
+          figure={36}
+          min={170}
+          tiles={[
+            {
+              label: '小时',
+              value: Math.round(totals.hours),
+              delta: (
+                <>
+                  {delta(totals.hours, prevTotals.hours)} · {dateNote}
+                </>
+              ),
+            },
+            {
+              label: '次数',
+              value: totals.sessions,
+              delta: delta(totals.sessions, prevTotals.sessions),
+            },
+            {
+              label: '活跃天',
+              value: totals.activeDays,
+              delta: delta(totals.activeDays, prevTotals.activeDays),
+            },
+            {
+              label: '有运动的周',
+              value: `${weeksInfo.withSession} / ${weeksInfo.totalWeeks}`,
+              delta: `${Math.round((weeksInfo.withSession / weeksInfo.totalWeeks) * 100)}% 的周`,
+            },
+            {
+              label: '最长连续',
+              value: `${longestStreak} 天`,
+              delta: `最长间隔 ${longestGap} 天`,
+            },
+            {
+              label: '12 个月平均',
+              value: `${avg12.toFixed(1)} h/月`,
+            },
+          ]}
+        />
       </section>
 
       <section className="ed-section" aria-label="我做得更多吗">

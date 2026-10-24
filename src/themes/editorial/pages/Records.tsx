@@ -16,7 +16,7 @@ import {
 } from '../lib/data';
 import { bestRunForDistance } from '../lib/track';
 import { RouteThumb as Thumb } from '../components/SessionTile';
-import { SiteFooter } from '../components/sections';
+import { SiteFooter, StatStrip } from '../components/sections';
 
 const fmtDuration = (seconds: number): string => {
   const total = Math.round(seconds);
@@ -145,36 +145,24 @@ export function Records({
           Records
         </h1>
 
-        <div className="ed-stats-row">
-          <div className="ed-stat-cell">
-            <span className="ed-stat-num">
-              {earliest
-                ? `${localDate(earliest).getFullYear()}.${localDate(earliest).getMonth() + 1}`
-                : '—'}
-            </span>
-            <span className="ed-stat-label">始于</span>
-          </div>
-          <div className="ed-stat-cell">
-            <span className="ed-stat-num">{formatInt(totals.sessions)}</span>
-            <span className="ed-stat-label">次数</span>
-          </div>
-          <div className="ed-stat-cell">
-            <span className="ed-stat-num">{formatInt(totals.km)}</span>
-            <span className="ed-stat-label">公里</span>
-          </div>
-          <div className="ed-stat-cell">
-            <span className="ed-stat-num">{formatInt(totals.hours)}</span>
-            <span className="ed-stat-label">小时</span>
-          </div>
-          <div className="ed-stat-cell">
-            <span className="ed-stat-num">{formatInt(totals.climb)}</span>
-            <span className="ed-stat-label">累计爬升 m</span>
-          </div>
-          <div className="ed-stat-cell">
-            <span className="ed-stat-num">{bySport(activities).length}</span>
-            <span className="ed-stat-label">种运动</span>
-          </div>
-        </div>
+        <StatStrip
+          label="全部累计"
+          figure={40}
+          min={170}
+          tiles={[
+            {
+              label: '始于',
+              value: earliest
+                ? `${localDate(earliest).getFullYear()} 年 ${localDate(earliest).getMonth() + 1} 月`
+                : '—',
+            },
+            { label: '次数', value: formatInt(totals.sessions) },
+            { label: '公里', value: formatInt(totals.km) },
+            { label: '小时', value: formatInt(totals.hours) },
+            { label: '爬升 m', value: formatInt(totals.climb) },
+            { label: '运动', value: bySport(activities).length },
+          ]}
+        />
       </section>
 
       {/* 跑步最快 */}

@@ -16,8 +16,8 @@ import {
   type SportKey,
 } from '../lib/data';
 import { sortedByDate } from '../lib/track';
-import { RouteThumb, SessionGlyph } from '../components/SessionTile';
-import { Delta, SiteFooter, StatTile } from '../components/sections';
+import { SessionGlyph } from '../components/SessionTile';
+import { Delta, PillLink, SiteFooter, SportMixBar, StatTile } from '../components/sections';
 
 const zhDate = (d: Date) =>
   `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日`;
@@ -136,10 +136,10 @@ export function Home({
         </div>
       </section>
 
-      {/* 今年迄今（THIS YEAR SO FAR：大字年份 + 指标格） */}
+      {/* 今年迄今（THIS YEAR SO FAR：大字年份 + 指标格 + 运动小时条） */}
       {thisTotals.sessions > 0 && (
         <section className="ed-section" aria-label="今年迄今">
-          <div className="ed-focus-card2">
+          <div className="ed-focus-card2 ed-focus-card2--home">
             <div className="year-block">
               <span className="eyebrow">今年迄今</span>
               <span className="big-year">{thisYear}</span>
@@ -148,41 +148,43 @@ export function Home({
                 {new Date().getMonth() + 1} 月 {new Date().getDate()} 日）
               </span>
             </div>
-            <div className="focus-body">
-              <dl className="focus-facts">
-                <StatTile
-                  label="小时"
-                  value={Math.round(thisTotals.hours)}
-                  delta={<Delta now={thisTotals.hours} before={lastTotals.hours} />}
-                />
-                <StatTile
-                  label="次数"
-                  value={thisTotals.sessions}
-                  delta={
-                    <Delta now={thisTotals.sessions} before={lastTotals.sessions} />
-                  }
-                />
-                <StatTile
-                  label="活跃天"
-                  value={thisTotals.activeDays}
-                  delta={
-                    <Delta
-                      now={thisTotals.activeDays}
-                      before={lastTotals.activeDays}
-                    />
-                  }
-                />
-                <StatTile
-                  label="运动"
-                  value={new Set(thisPeriod.map((a) => sportOf(a))).size}
-                  delta={
-                    <Delta
-                      now={new Set(thisPeriod.map((a) => sportOf(a))).size}
-                      before={lastSportCount}
-                    />
-                  }
-                />
-              </dl>
+            <dl className="focus-facts">
+              <StatTile
+                label="小时"
+                value={Math.round(thisTotals.hours)}
+                delta={<Delta now={thisTotals.hours} before={lastTotals.hours} />}
+              />
+              <StatTile
+                label="次数"
+                value={thisTotals.sessions}
+                delta={
+                  <Delta now={thisTotals.sessions} before={lastTotals.sessions} />
+                }
+              />
+              <StatTile
+                label="活跃天"
+                value={thisTotals.activeDays}
+                delta={
+                  <Delta
+                    now={thisTotals.activeDays}
+                    before={lastTotals.activeDays}
+                  />
+                }
+              />
+              <StatTile
+                label="运动"
+                value={new Set(thisPeriod.map((a) => sportOf(a))).size}
+                delta={
+                  <Delta
+                    now={new Set(thisPeriod.map((a) => sportOf(a))).size}
+                    before={lastSportCount}
+                  />
+                }
+              />
+            </dl>
+            <div className="mix-row">
+              <SportMixBar activities={thisPeriod} />
+              <PillLink onClick={() => navigate('years')}>对比历年 →</PillLink>
             </div>
           </div>
         </section>
@@ -220,8 +222,8 @@ export function Home({
                 }}
                 onClick={() => navigate(`a/${a.run_id}`)}
               >
-                <span className="thumb">
-                  <RouteThumb activity={a} />
+                <span className="thumb ed-latest-glyph">
+                  <SessionGlyph activity={a} glow />
                 </span>
                 <span style={{ minWidth: 0 }}>
                   <span className="tag">

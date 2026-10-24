@@ -13,7 +13,7 @@ import {
   type SportKey,
 } from '../lib/data';
 import { YearToDateChart } from '../components/charts';
-import { Delta, SiteFooter, StatTile } from '../components/sections';
+import { Delta, PillLink, SiteFooter, SportMixBar, StatStrip, StatTile } from '../components/sections';
 
 /** 运动固定顺序（参考站常量表顺序） */
 const SPORT_ORDER: SportKey[] = [
@@ -62,7 +62,12 @@ export function Years({
   const [focus, setFocus] = useState<number>(
     years.includes(thisYear) ? thisYear : years[years.length - 1]
   );
-  void navigate;
+
+  const allTotals = useMemo(() => totalsOf(activities), [activities]);
+  const focusActs = useMemo(
+    () => activities.filter((a) => activityYear(a) === focus),
+    [activities, focus]
+  );
 
   // 每年全年总量
   const perYearTotals = useMemo(() => {
@@ -202,21 +207,20 @@ export function Years({
   return (
     <>
       <section className="ed-fade-up" aria-label="Years">
-        <div
-          className="ed-section-head"
-          style={{ marginBottom: 0, alignItems: 'flex-end' }}
-        >
+        <div className="ed-page-head">
           <h1
             className="ed-hero-title"
             style={{ fontSize: 'clamp(56px, 8vw, 112px)' }}
           >
             Years
           </h1>
-          <div className="ed-pills" style={{ paddingBottom: 14 }}>
+          <div className="ed-tabs" role="group" aria-label="聚焦年份">
             {years.map((y) => (
               <button
                 key={y}
-                className={`ed-pill ${y === focus ? 'is-on' : ''}`}
+                type="button"
+                aria-pressed={y === focus}
+                className={`ed-tab ${y === focus ? 'is-on' : ''}`}
                 onClick={() => setFocus(y)}
               >
                 {y}
@@ -224,6 +228,19 @@ export function Years({
             ))}
           </div>
         </div>
+        <StatStrip
+          label="全部累计"
+          figure={40}
+          min={170}
+          tiles={[
+            { label: '次数', value: formatInt(allTotals.sessions) },
+            { label: '小时', value: formatInt(allTotals.hours) },
+            { label: '活跃天', value: formatInt(allTotals.activeDays) },
+            { label: '公里', value: formatInt(allTotals.km) },
+            { label: '爬升 m', value: formatInt(allTotals.climb) },
+            { label: '运动', value: matrix.sports.length },
+          ]}
+        />
       </section>
 
       {/* ── 聚焦年份（YEAR IN FOCUS：大字年份 + 指标格）────────────── */}
@@ -273,6 +290,12 @@ export function Years({
                 />
               )}
             </dl>
+          </div>
+          <div className="mix-row">
+            <SportMixBar activities={focusActs} />
+            <PillLink onClick={() => navigate(`calendar?y=${focus}`)}>
+              打开日历 →
+            </PillLink>
           </div>
         </div>
       </section>

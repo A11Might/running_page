@@ -236,9 +236,9 @@ a.ed-link {
 }
 
 .ed-section-title {
-  font-size: clamp(26px, 3vw, 36px);
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   margin: 0;
 }
 
@@ -650,7 +650,7 @@ a.ed-link {
 }
 
 .ed-year-heading .year {
-  font-size: clamp(56px, 8vw, 120px);
+  font-size: clamp(72px, 7vw, 96px);
   font-weight: 900;
   font-style: italic;
   letter-spacing: var(--display-tracking);
@@ -1742,4 +1742,9 @@ a.ed-link {
 /* glow 滤镜下的发光 */
 .ed-glyph-glow {
   filter: drop-shadow(0 0 3px currentColor);
+}
+
+/* Records 页区块标题（参考站该页 H2 为 28px） */
+.ed-h2-lg {
+  font-size: 28px;
 }

@@ -179,7 +179,7 @@ export function Records({
       {/* 跑步最快 */}
       <section className="ed-section" aria-label="跑步最快">
         <div className="ed-section-head">
-          <h2 className="ed-section-title">跑步最快</h2>
+          <h2 className="ed-section-title ed-h2-lg">跑步最快</h2>
           <span className="ed-section-note">
             数据无逐点配速流 · 取「距离 ≥ 该目标」活动中平均配速最快的一次
           </span>
@@ -209,21 +209,9 @@ export function Records({
               {best ? (
                 <>
                   <div className="time">
-                    {fmtPace(best.secPerKm)}{' '}
-                    <span
-                      style={{
-                        fontSize: 15,
-                        fontWeight: 600,
-                        color: '#8c8b85',
-                      }}
-                    >
-                      /km
-                    </span>
+                    {fmtDuration(best.secPerKm * (best.distanceM / 1000))}
                   </div>
-                  <div className="pace">
-                    {activityKm(best.activity.distance).toFixed(1)} km ·{' '}
-                    {fmtDuration(activitySeconds(best.activity))}
-                  </div>
+                  <div className="pace">{fmtPace(best.secPerKm)} /km</div>
                   <div className="name">{best.activity.name || '跑步'}</div>
                   <div className="date">
                     {localDate(best.activity).toLocaleDateString('zh-CN')}
@@ -247,7 +235,7 @@ export function Records({
       {/* 最大的一天 */}
       <section className="ed-section" aria-label="最大的一天">
         <div className="ed-section-head">
-          <h2 className="ed-section-title">最大的一天</h2>
+          <h2 className="ed-section-title ed-h2-lg">最大的一天</h2>
         </div>
         <div className="ed-latest-grid">
           {biggest?.longestRun && (
@@ -281,7 +269,7 @@ export function Records({
       {races.length > 0 && (
         <section className="ed-section" aria-label="比赛">
           <div className="ed-section-head">
-            <h2 className="ed-section-title">比赛</h2>
+            <h2 className="ed-section-title ed-h2-lg">比赛</h2>
             <span className="ed-section-note">
               按名字识别的比赛与长距离挑战
             </span>
@@ -350,7 +338,7 @@ export function Records({
       {/* 按运动 */}
       <section className="ed-section" aria-label="按运动统计">
         <div className="ed-section-head">
-          <h2 className="ed-section-title">按运动</h2>
+          <h2 className="ed-section-title ed-h2-lg">按运动</h2>
         </div>
         <table className="ed-table">
           <thead>
@@ -428,7 +416,7 @@ function BigDayCard({
       onClick={onOpen}
     >
       <span className="thumb">
-        <Thumb activity={activity} />
+        <Thumb activity={activity} width={112} height={92} />
       </span>
       <span style={{ minWidth: 0 }}>
         <span className="tag">
@@ -437,28 +425,41 @@ function BigDayCard({
         </span>
         <span
           className="name"
-          style={{ display: 'block', fontSize: 26, letterSpacing: '-0.02em' }}
+          style={{
+            display: 'block',
+            fontSize: 32,
+            fontWeight: 800,
+            letterSpacing: '-0.02em',
+            lineHeight: 1.1,
+          }}
         >
           {value}
         </span>
         <span
-          className="meta"
           style={{
             display: 'block',
+            marginTop: 4,
+            fontWeight: 600,
+            fontSize: 14,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
           }}
         >
-          {activity.name} · {localDate(activity).toLocaleDateString('zh-CN')} ·{' '}
-          {paceOrTime(activity)}
+          {activity.name}
+        </span>
+        <span
+          style={{
+            display: 'block',
+            marginTop: 2,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12,
+            color: '#8c8b85',
+          }}
+        >
+          {localDate(activity).toLocaleDateString('zh-CN')}
         </span>
       </span>
     </button>
   );
-}
-
-function paceOrTime(a: Activity): string {
-  const pace = paceSecPerKm(a);
-  return pace ? `${fmtPace(pace)} /km` : SPORTS[sportOf(a)].zh;
 }

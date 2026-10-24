@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { Activity } from '@/types';
 import {
   activitySeconds,
@@ -676,48 +676,205 @@ export function RoutePoster({
   );
 }
 
-// ── 心率曲线（详情页）────────────────────────────────────────────────────────
+// ── 心率曲线（详情页，可拖拽播放头，与高程/3D/海报联动）──────────────────────
 
 export function HrChart({
   activity,
   color,
+  scrubFraction,
+  onScrubFraction,
+  elapsedSeconds,
 }: {
   activity: Activity;
   color: string;
+  /** 0..1 的会话进度播放头；null 无播放头 */
+  scrubFraction: number | null;
+  onScrubFraction: (frac: number | null) => void;
+  elapsedSeconds: number;
 }) {
   const series = activity.hr_series ?? [];
   const vals = series.filter((v): v is number => v != null);
   if (vals.length < 6) return null;
-  const lo = Math.min(...vals) - 8;
-  const hi = Math.max(...vals) + 8;
+  const lo = Math.floor((Math.min(...vals) - 6) / 10) * 10;
+  const hi = Math.ceil((Math.max(...vals) + 6) / 10) * 10;
   const W = 1200;
-  const H = 170;
+  const H = 190;
+  const PAD_L = 56;
+  const PAD_R = 16;
+  const PAD_T = 14;
+  const PAD_B = 26;
   const n = series.length;
-  const x = (i: number) => (i / (n - 1)) * W;
-  const y = (v: number) => 10 + (1 - (v - lo) / (hi - lo)) * (H - 26);
+  const x = (i: number) => PAD_L + (i / (n - 1)) * (W - PAD_L - PAD_R);
+  const y = (v: number) =>
+    PAD_T + (1 - (v - lo) / (hi - lo)) * (H - PAD_T - PAD_B);
 
-  // 平滑折线（Catmull-Rom 简化为中点二次贝塞尔）
-  let line = `M${x(0).toFixed(1)} ${y(series[0] ?? vals[0]).toFixed(1)}`;
-  for (let i = 1; i < n; i++) {
+  // 高分辨率序列（240 桶）直接折线，保留真实的尖峰起伏
+  let line = '';
+  for (let i = 0; i < n; i++) {
     const v = series[i];
     if (v == null) continue;
-    const px = x(i - 1);
-    const py = y(series[i - 1] ?? v);
-    const cxp = (px + x(i)) / 2;
-    line += ` Q${cxp.toFixed(1)} ${py.toFixed(1)} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`;
+    line += `${line ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`;
   }
-  const area = `${line} L${W} ${H - 8} L0 ${H - 8} Z`;
+  const area = `${line} L${x(n - 1).toFixed(1)} ${H - PAD_B} L${PAD_L} ${H - PAD_B} Z`;
+
+  // 播放头位置的心率（线性插值）
+  const hrAt = (frac: number): number | null => {
+    if (!series.length) return null;
+    const p = frac * (series.length - 1);
+    const i0 = Math.floor(p);
+    const i1 = Math.min(series.length - 1, i0 + 1);
+    const v0 = series[i0];
+    const v1 = series[i1];
+    if (v0 == null && v1 == null) return null;
+    return (v0 ?? v1)! + ((v1 ?? v0)! - (v0 ?? v1)!) * (p - i0);
+  };
+
+  const scrubX =
+    scrubFraction != null
+      ? PAD_L + Math.min(Math.max(scrubFraction, 0), 1) * (W - PAD_L - PAD_R)
+      : null;
+  const scrubHr = scrubFraction != null ? hrAt(scrubFraction) : null;
+  const scrubTime =
+    scrubFraction != null
+      ? (() => {
+          const total = Math.round((elapsedSeconds / 60) * scrubFraction);
+          return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+        })()
+      : null;
+
+  const svgRef = useRef<SVGSVGElement>(null);
+  const draggingRef = useRef(false);
+
+  const fracFromEvent = (e: React.PointerEvent): number => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect) return 0;
+    const vx = ((e.clientX - rect.left) / rect.width) * W;
+    return Math.min(Math.max((vx - PAD_L) / (W - PAD_L - PAD_R), 0), 1);
+  };
+
+  const gridTicks: number[] = [];
+  const tickStep = Math.max(Math.round((hi - lo) / 4 / 10) * 10, 10);
+  for (let v = lo + tickStep; v < hi; v += tickStep) gridTicks.push(v);
 
   return (
     <svg
-      className="ed-chart-svg"
+      ref={svgRef}
+      className="ed-chart-svg ed-hr-chart"
       viewBox={`0 0 ${W} ${H}`}
-      style={{ marginTop: 0 }}
-      role="img"
-      aria-label={`${activity.name} 心率曲线，平均 ${Math.round(activity.average_heartrate ?? 0)} bpm`}
+      style={{ marginTop: 0, touchAction: 'none', cursor: 'crosshair' }}
+      role="slider"
+      aria-label={`${activity.name} 心率播放头`}
+      aria-valuenow={
+        scrubFraction != null ? Math.round(scrubFraction * 100) : undefined
+      }
+      aria-valuetext={
+        scrubTime
+          ? `${scrubTime}，约 ${scrubHr ? Math.round(scrubHr) : '—'} bpm`
+          : '未选择'
+      }
+      tabIndex={0}
+      onPointerDown={(e) => {
+        draggingRef.current = true;
+        (e.target as Element).setPointerCapture?.(e.pointerId);
+        onScrubFraction(fracFromEvent(e));
+      }}
+      onPointerMove={(e) => {
+        if (draggingRef.current) onScrubFraction(fracFromEvent(e));
+      }}
+      onPointerUp={() => {
+        draggingRef.current = false;
+      }}
+      onPointerCancel={() => {
+        draggingRef.current = false;
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onScrubFraction(null);
+        else if (e.key === 'ArrowLeft')
+          onScrubFraction(Math.max((scrubFraction ?? 0) - 0.01, 0));
+        else if (e.key === 'ArrowRight')
+          onScrubFraction(Math.min((scrubFraction ?? 0) + 0.01, 1));
+      }}
     >
-      <path d={area} fill={color} opacity={0.18} />
-      <path d={line} fill="none" stroke={color} strokeWidth={2} />
+      {/* 网格与 Y 轴 */}
+      {gridTicks.map((v) => (
+        <g key={v}>
+          <line
+            x1={PAD_L}
+            x2={W - PAD_R}
+            y1={y(v)}
+            y2={y(v)}
+            stroke="#1e1f23"
+          />
+          <text
+            x={PAD_L - 8}
+            y={y(v) + 3}
+            textAnchor="end"
+            fontSize={10}
+            fill="#55565c"
+          >
+            {v}
+          </text>
+        </g>
+      ))}
+      <path d={area} fill={color} opacity={0.15} />
+      <path
+        d={line}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      {/* 播放头 */}
+      {scrubX != null && (
+        <g>
+          <line
+            x1={scrubX}
+            x2={scrubX}
+            y1={PAD_T - 4}
+            y2={H - PAD_B}
+            stroke="#f0efec"
+            strokeWidth={1.5}
+          />
+          {scrubHr != null && (
+            <circle
+              cx={scrubX}
+              cy={y(scrubHr)}
+              r={4.5}
+              fill="#f0efec"
+              stroke={color}
+              strokeWidth={2}
+            />
+          )}
+          {scrubTime && (
+            <text
+              x={Math.min(scrubX + 8, W - PAD_R - 44)}
+              y={PAD_T + 8}
+              fontSize={11}
+              fill="#f0efec"
+              fontFamily="var(--font-mono)"
+            >
+              {scrubTime}
+              {scrubHr != null ? ` · ${Math.round(scrubHr)} bpm` : ''}
+            </text>
+          )}
+        </g>
+      )}
+      {/* X 轴时间刻度 */}
+      {[0, 0.25, 0.5, 0.75, 1].map((f) => (
+        <text
+          key={f}
+          x={PAD_L + f * (W - PAD_L - PAD_R)}
+          y={H - 8}
+          fontSize={10}
+          fill="#55565c"
+          textAnchor={f === 0 ? 'start' : f === 1 ? 'end' : 'middle'}
+        >
+          {(() => {
+            const total = Math.round((elapsedSeconds / 60) * f);
+            return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+          })()}
+        </text>
+      ))}
     </svg>
   );
 }

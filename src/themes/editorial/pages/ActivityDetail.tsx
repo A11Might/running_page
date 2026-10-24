@@ -181,11 +181,12 @@ export function ActivityDetail({
     () => activities.find((a) => a.run_id === runId) ?? null,
     [activities, runId]
   );
-  const [scrub, setScrub] = useState<number | null>(null);
+  /** 全页面统一的播放头：0..1 的会话进度，驱动心率图/高程剖面/3D/路线海报 */
+  const [scrubFrac, setScrubFrac] = useState<number | null>(null);
   const scene = useVertScene(runId);
 
   useEffect(() => {
-    setScrub(null);
+    setScrubFrac(null);
   }, [runId]);
 
   useEffect(() => {
@@ -251,8 +252,6 @@ export function ActivityDetail({
   })();
   const pace = paceSecPerKm(activity);
   const date = localDate(activity);
-  const scrubFraction =
-    scrub != null && activity.distance > 0 ? scrub / activity.distance : null;
   const hasRoute = !!trackOf(activity);
 
   return (
@@ -283,7 +282,7 @@ export function ActivityDetail({
       <div className="ed-detail">
         <div className="ed-poster">
           {hasRoute ? (
-            <RoutePoster activity={activity} scrubFraction={scrubFraction} />
+            <RoutePoster activity={activity} scrubFraction={scrubFrac} />
           ) : (
             <>
               <div
@@ -413,8 +412,18 @@ export function ActivityDetail({
                 <VertScene
                   activity={activity}
                   scene={scene}
-                  scrub={scrub}
-                  onScrub={setScrub}
+                  scrub={
+                    scrubFrac != null && activity.distance > 0
+                      ? scrubFrac * activity.distance
+                      : null
+                  }
+                  onScrub={(m) =>
+                    setScrubFrac(
+                      m == null || !activity.distance
+                        ? null
+                        : m / activity.distance
+                    )
+                  }
                 />
               )}
             </Suspense>
@@ -435,9 +444,15 @@ export function ActivityDetail({
                 {maxHr} bpm
               </span>
             </div>
-            <HrChart activity={activity} color={color} />
+            <HrChart
+              activity={activity}
+              color={color}
+              scrubFraction={scrubFrac}
+              onScrubFraction={setScrubFrac}
+              elapsedSeconds={elapsedSeconds || seconds}
+            />
             <div className="ed-hr-axis">
-              <span>开始</span>
+              <span>拖动图表或高程剖面回放 · Esc 清除</span>
               <span>{fmtDuration(elapsedSeconds || seconds)}</span>
             </div>
             {/* 心率区间的时间分布（对齐参考站的 Z1–Z5 分布行） */}

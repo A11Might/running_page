@@ -298,7 +298,7 @@ export function ActivityDetail({
                   justifyContent: 'center',
                 }}
               >
-                <div style={{ width: 300 }}>
+                <div style={{ width: '100%', maxWidth: 440 }}>
                   <SessionGlyph
                     activity={activity}
                     size={300}

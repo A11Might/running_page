@@ -104,28 +104,42 @@ function SessionClock({
     ) : null
   );
 
-  // ── 内曲线：绝对刻度 60–180 bpm（参考站），折线锐利；70 bpm 淡圈 ──
+  // ── 内曲线：绝对刻度 60–180 bpm（参考站），折线锐利 ──
+  // 空心率桶前值延续（避免曲线凹陷到 70 bpm 断裂）
+  const cleaned: number[] = [];
+  let lastV: number | null = null;
+  for (const v of arr) {
+    if (v != null) lastV = v;
+    cleaned.push(lastV ?? 70);
+  }
+  for (let i = cleaned.length - 1; i >= 0; i--) {
+    if (cleaned[i] === 70 && arr[i] == null) {
+      // 尾部空桶向后取最近的非空值
+      let j = i;
+      while (j < arr.length && arr[j] == null) j++;
+      if (j < arr.length && arr[j] != null) cleaned[i] = arr[j]!;
+    }
+  }
   const curveR = (v: number): number =>
     c * (0.17 + ((Math.min(Math.max(v, 60), 180) - 60) / 120) * 0.3);
-  const PULSE_N = Math.max(Math.min(arr.length, 144), 64);
+  const PULSE_N = Math.max(Math.min(cleaned.length, 144), 64);
   const pulsePts: string[] = [];
   for (let i = 0; i < PULSE_N; i++) {
     const a = -Math.PI / 2 + (i / PULSE_N) * Math.PI * 2;
-    let v = 70;
-    if (hasHr) {
-      const x = (i / PULSE_N) * arr.length;
-      const i0 = Math.min(arr.length - 1, Math.floor(x));
-      const i1 = Math.min(arr.length - 1, i0 + 1);
-      const v0 = arr[i0];
-      const v1 = arr[i1];
-      if (v0 != null || v1 != null)
-        v = (v0 ?? v1!) + ((v1 ?? v0!) - (v0 ?? v1!)) * (x - i0);
-    }
+    const x = (i / PULSE_N) * cleaned.length;
+    const i0 = Math.min(cleaned.length - 1, Math.floor(x));
+    const i1 = Math.min(cleaned.length - 1, i0 + 1);
+    const v = cleaned[i0] + (cleaned[i1] - cleaned[i0]) * (x - i0);
     const p = polar(c, c, curveR(v), a);
     pulsePts.push(`${p.x.toFixed(2)} ${p.y.toFixed(2)}`);
   }
   const pulseD = `M${pulsePts.join('L')}Z`;
   const baseCircleR = curveR(70);
+  // 填充带 = 曲线与 70 bpm 圈之间的环（even-odd，不填到圆心 —— 对齐参考站遮罩效果）
+  const fillBandD =
+    cleaned.length > 0
+      ? `${pulseD}M${(c + baseCircleR).toFixed(2)} ${c}A${baseCircleR.toFixed(2)} ${baseCircleR.toFixed(2)} 0 1 0 ${(c - baseCircleR).toFixed(2)} ${c}A${baseCircleR.toFixed(2)} ${baseCircleR.toFixed(2)} 0 1 0 ${(c + baseCircleR).toFixed(2)} ${c}Z`
+      : pulseD;
 
   // ── 核心：种子点 + 每满一小时一圈（r = 1.2 + 1.6k，参考站实测）──
   const seedR = c * 0.026;
@@ -151,22 +165,28 @@ function SessionClock({
         {ringPaths}
       </g>
       <g style={{ opacity: dim('curve'), transition: 'opacity 0.25s ease' }}>
+        {/* 70 bpm 基准圈：深色发丝线（参考站），不是运动色 */}
         <circle
           cx={c}
           cy={c}
           r={baseCircleR}
           fill="none"
-          stroke={color}
-          strokeWidth={hero ? 1 : 0.7}
-          opacity={0.28}
+          stroke="#26272b"
+          strokeWidth={Math.max(c * 0.005, 0.3)}
+        />
+        {/* 填充带：曲线与 70 bpm 圈之间的环形 */}
+        <path
+          d={fillBandD}
+          fill={color}
+          fillOpacity={0.16}
+          fillRule="evenodd"
         />
         <path
           d={pulseD}
-          fill={color}
-          fillOpacity={0.1}
+          fill="none"
           stroke={color}
-          strokeWidth={hero ? 1.8 : 1.1}
-          strokeOpacity={0.95}
+          strokeWidth={hero ? 2 : 1.1}
+          strokeLinejoin="round"
         />
       </g>
       <g style={{ opacity: dim('core'), transition: 'opacity 0.25s ease' }}>
@@ -177,12 +197,12 @@ function SessionClock({
             cy={c}
             r={r}
             fill="none"
-            stroke={color}
+            stroke="#b9b8b0"
             strokeWidth={Math.max(c * 0.005, 0.3)}
             opacity={0.9}
           />
         ))}
-        <circle cx={c} cy={c} r={seedR} fill={color} />
+        <circle cx={c} cy={c} r={seedR} fill="#f0efec" />
       </g>
     </svg>
   );

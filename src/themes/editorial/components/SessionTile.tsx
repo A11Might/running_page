@@ -1,6 +1,12 @@
 import { memo, type ReactElement } from 'react';
 import type { Activity } from '@/types';
-import { activitySeconds, hrZone, sportColor, sportOf } from '../lib/data';
+import {
+  activitySeconds,
+  hrZone,
+  sportColor,
+  sportOf,
+  ZONE_COLORS,
+} from '../lib/data';
 import { trackOf, trackPath } from '../lib/track';
 
 interface GlyphProps {
@@ -9,6 +15,8 @@ interface GlyphProps {
   glow?: boolean;
   /** 详情页用：画笔更粗、显示起终点 */
   hero?: boolean;
+  /** 图例悬浮联动：高亮指定部分，其余淡出（仅会话时钟生效） */
+  highlight?: 'ring' | 'curve' | 'core' | null;
 }
 
 /** 极坐标辅助 */
@@ -47,120 +55,87 @@ function SessionClock({
   hero,
   glow,
   color,
+  highlight,
 }: Required<Pick<GlyphProps, 'size' | 'hero' | 'glow'>> & { color: string } & {
   activity: Activity;
+  highlight?: 'ring' | 'curve' | 'core' | null;
 }) {
-  const hours = Math.max(activitySeconds(activity) / 3600, 1 / 60);
+  const hours = activitySeconds(activity) / 3600;
   const c = size / 2;
-  const R = c - (hero ? 8 : 5);
   const arr = activity.hr_series ?? [];
-  const vals = arr.filter((v): v is number => v != null);
-  const hasHr = vals.length >= 6;
-  // 每场活动内归一化：把这场的心率区间拉满整个柱高范围，
-  // 高低对比才像参考站那样参差（绝对区间只决定颜色）
-  let lo = Infinity;
-  let hi = -Infinity;
-  for (const v of vals) {
-    if (v < lo) lo = v;
-    if (v > hi) hi = v;
-  }
-  const spread = hasHr ? Math.max(hi - lo, 4) : 0;
-  const relFrac = (hr: number | null): number | null =>
-    hasHr && hr != null ? Math.min(Math.max((hr - lo) / spread, 0), 1) : null;
+  const hasHr = arr.filter((v) => v != null).length >= 6;
 
-  // ── 外环：一圈 = 整场，每桶一片，顺时针从顶部开始 ──
-  const N = Math.max(arr.length, 48);
-  const barMax = hero ? Math.max(R * 0.17, 9) : Math.max(R * 0.17, 4);
-  const rIn = R - barMax;
-  const segArc = (Math.PI * 2) / N;
-  const slices: ReactElement[] = [];
-  for (let i = 0; i < N; i++) {
-    const t = i / N;
+  // ── 外环：固定 48 槽，瓦片内缘统一，高度按心率区间量化（参考站结构）──
+  const SLOTS = 48;
+  const ringIn = c * 0.48; // 瓦片内缘半径
+  const bandStep = c * 0.042; // 每级区间的高度
+  const slotArc = (Math.PI * 2) / SLOTS;
+  const ZONE_OPACITY = [0.3, 0.47, 0.64, 0.82, 1.0];
+  const zoneSubs: string[][] = [[], [], [], [], []];
+  for (let i = 0; i < SLOTS; i++) {
     const hr = arr.length
-      ? (arr[Math.min(arr.length - 1, Math.floor(t * arr.length))] ?? null)
+      ? (arr[Math.min(arr.length - 1, Math.floor((i / SLOTS) * arr.length))] ??
+        null)
       : null;
-    const f = relFrac(hr);
-    // 无心率数据：确定性伪随机高低，不冒充真实数据
-    const ff =
-      f ??
-      0.3 +
-        0.55 *
-          Math.abs(
-            Math.sin(i * 2.399 + (activity.run_id % 17)) * Math.cos(i * 0.7)
-          );
-    const h = barMax * (0.1 + 0.9 * ff);
-    const a0 = -Math.PI / 2 + i * segArc; // 顶部顺时针
-    slices.push(
-      <path
-        key={i}
-        d={sectorPath(
-          c,
-          c,
-          rIn,
-          rIn + Math.max(h, 1),
-          a0 + segArc * 0.18,
-          a0 + segArc * 0.82
-        )}
-        fill={color}
-        opacity={0.28 + 0.68 * ff}
-      />
+    let z: number;
+    if (hr != null) {
+      z = hrZone(hr) ?? 1;
+    } else {
+      // 无心率数据：确定性伪随机分布，不冒充真实数据
+      const f = Math.abs(
+        Math.sin(i * 2.399 + (activity.run_id % 17)) * Math.cos(i * 0.7)
+      );
+      z = Math.max(1, Math.min(5, Math.round(f * 4) + 1));
+    }
+    const a1 = -Math.PI / 2 + i * slotArc + slotArc * 0.015;
+    const a2 = -Math.PI / 2 + i * slotArc + slotArc * 0.985;
+    zoneSubs[z - 1].push(
+      sectorPath(c, c, ringIn, ringIn + bandStep * z, a1, a2)
     );
   }
+  const ringPaths = zoneSubs.map((subs, zi) =>
+    subs.length ? (
+      <path
+        key={zi}
+        d={subs.join('')}
+        fill={ZONE_COLORS[zi + 1]}
+        opacity={ZONE_OPACITY[zi]}
+      />
+    ) : null
+  );
 
-  // ── 内曲线：同一场内的相对高低（0.26–0.95 半径），70 bpm 淡圈为基准 ──
-  const HR_BASE = 70; // 淡圈基准
-  const PULSE_LO = 0.26;
-  const PULSE_HI = 0.95;
-  const pulseR = rIn - (hero ? 7 : 4);
-  const PULSE_N = Math.max(arr.length * 2, 64);
-  const pulseRadiusOf = (v: number): number =>
-    hasHr
-      ? pulseR * (PULSE_LO + (PULSE_HI - PULSE_LO) * ((v - lo) / spread))
-      : pulseR * 0.4;
-  const rAt = (t: number): number => {
-    if (!hasHr) return pulseR * 0.4;
-    const x = t * arr.length;
-    const i0 = Math.min(arr.length - 1, Math.floor(x));
-    const i1 = Math.min(arr.length - 1, i0 + 1);
-    const v0 = arr[i0];
-    const v1 = arr[i1];
-    if (v0 == null && v1 == null) return pulseRadiusOf(lo);
-    const a = v0 ?? v1!;
-    const b = v1 ?? v0!;
-    return pulseRadiusOf(a + (b - a) * (x - i0));
-  };
+  // ── 内曲线：绝对刻度 60–180 bpm（参考站），折线锐利；70 bpm 淡圈 ──
+  const curveR = (v: number): number =>
+    c * (0.17 + ((Math.min(Math.max(v, 60), 180) - 60) / 120) * 0.3);
+  const PULSE_N = Math.max(Math.min(arr.length, 144), 64);
   const pulsePts: string[] = [];
   for (let i = 0; i < PULSE_N; i++) {
     const a = -Math.PI / 2 + (i / PULSE_N) * Math.PI * 2;
-    const p = polar(c, c, rAt(i / PULSE_N), a);
+    let v = 70;
+    if (hasHr) {
+      const x = (i / PULSE_N) * arr.length;
+      const i0 = Math.min(arr.length - 1, Math.floor(x));
+      const i1 = Math.min(arr.length - 1, i0 + 1);
+      const v0 = arr[i0];
+      const v1 = arr[i1];
+      if (v0 != null || v1 != null)
+        v = (v0 ?? v1!) + ((v1 ?? v0!) - (v0 ?? v1!)) * (x - i0);
+    }
+    const p = polar(c, c, curveR(v), a);
     pulsePts.push(`${p.x.toFixed(2)} ${p.y.toFixed(2)}`);
   }
   const pulseD = `M${pulsePts.join('L')}Z`;
-  // 70 bpm 淡圈：只在这场心率范围覆盖它时画在对应相对位置
-  const baseCircleR =
-    hasHr && HR_BASE >= lo - 3 && HR_BASE <= hi + 3
-      ? pulseRadiusOf(HR_BASE)
-      : null;
+  const baseCircleR = curveR(70);
 
-  // ── 核心：种子点 + 每满一小时一圈 ──
-  const dotR = hero ? 3 : 2;
-  const coreRings = Math.max(2, Math.round(hours));
-  const coreOuter = (baseCircleR ?? pulseR * PULSE_LO) * 0.72;
-  const coreEls: ReactElement[] = [];
-  for (let k = coreRings; k >= 1; k--) {
-    coreEls.push(
-      <circle
-        key={k}
-        cx={c}
-        cy={c}
-        r={dotR + ((coreOuter - dotR) / coreRings) * k}
-        fill="none"
-        stroke={color}
-        strokeWidth={0.9}
-        opacity={0.5}
-      />
-    );
-  }
+  // ── 核心：种子点 + 每满一小时一圈（r = 1.2 + 1.6k，参考站实测）──
+  const seedR = c * 0.026;
+  const rings = Math.floor(hours);
+  const ringRs = Array.from(
+    { length: rings },
+    (_, k) => c * (1.2 + 1.6 * (k + 1)) * 0.0161
+  );
+  const dim = (part: 'ring' | 'curve' | 'core') =>
+    highlight && highlight !== part ? 0.2 : 1;
 
   return (
     <svg
@@ -169,19 +144,22 @@ function SessionClock({
       aria-label={`${activity.name} 会话时钟`}
       style={{ color, overflow: 'visible' }}
     >
-      <g className={glow ? 'ed-glyph-glow' : undefined}>
-        {slices}
-        {baseCircleR != null && (
-          <circle
-            cx={c}
-            cy={c}
-            r={baseCircleR}
-            fill="none"
-            stroke={color}
-            strokeWidth={hero ? 1 : 0.7}
-            opacity={0.28}
-          />
-        )}
+      <g
+        className={glow ? 'ed-glyph-glow' : undefined}
+        style={{ opacity: dim('ring'), transition: 'opacity 0.25s ease' }}
+      >
+        {ringPaths}
+      </g>
+      <g style={{ opacity: dim('curve'), transition: 'opacity 0.25s ease' }}>
+        <circle
+          cx={c}
+          cy={c}
+          r={baseCircleR}
+          fill="none"
+          stroke={color}
+          strokeWidth={hero ? 1 : 0.7}
+          opacity={0.28}
+        />
         <path
           d={pulseD}
           fill={color}
@@ -189,18 +167,30 @@ function SessionClock({
           stroke={color}
           strokeWidth={hero ? 1.8 : 1.1}
           strokeOpacity={0.95}
-          strokeLinejoin="round"
         />
       </g>
-      {coreEls}
-      <circle cx={c} cy={c} r={dotR} fill={color} />
+      <g style={{ opacity: dim('core'), transition: 'opacity 0.25s ease' }}>
+        {ringRs.map((r, k) => (
+          <circle
+            key={k}
+            cx={c}
+            cy={c}
+            r={r}
+            fill="none"
+            stroke={color}
+            strokeWidth={Math.max(c * 0.005, 0.3)}
+            opacity={0.9}
+          />
+        ))}
+        <circle cx={c} cy={c} r={seedR} fill={color} />
+      </g>
     </svg>
   );
 }
 
 /**
  * 会话图形 —— 编辑主题的签名视觉：
- *  - 有 GPS：轨迹按等比投影画成"路线形状"（route shape）
+ *  - 有 GPS：轨迹按等比投影画成"路线形状"（route shape），起点白点
  *  - 无 GPS：会话时钟（session clock）
  */
 export const SessionGlyph = memo(function SessionGlyph({
@@ -208,6 +198,7 @@ export const SessionGlyph = memo(function SessionGlyph({
   size = 84,
   glow = false,
   hero = false,
+  highlight = null,
 }: GlyphProps) {
   const sport = sportOf(activity);
   const color = sportColor(sport);
@@ -285,24 +276,33 @@ export const SessionGlyph = memo(function SessionGlyph({
       hero={hero}
       glow={glow}
       color={color}
+      highlight={highlight}
     />
   );
 });
 
-/** 路线小缩略图（Latest / Records 卡片用） */
 /** 会话时钟图例（详情页用，对齐参考站的 OUTER RING / INNER CURVE / CORE 说明） */
 export function SessionClockLegend({
   color,
   hours,
   durationLabel,
+  onHover,
 }: {
   color: string;
   hours: number;
   durationLabel: string;
+  onHover?: (part: 'ring' | 'curve' | 'core' | null) => void;
 }) {
+  const rowProps = (part: 'ring' | 'curve' | 'core') => ({
+    onMouseEnter: () => onHover?.(part),
+    onMouseLeave: () => onHover?.(null),
+    onFocus: () => onHover?.(part),
+    onBlur: () => onHover?.(null),
+    tabIndex: 0 as const,
+  });
   return (
     <div className="ed-clock-legend">
-      <div className="row">
+      <div className="row" {...rowProps('ring')}>
         <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
           {Array.from({ length: 18 }).map((_, i) => {
             const a = -Math.PI / 2 + (i / 18) * Math.PI * 2;
@@ -328,7 +328,7 @@ export function SessionClockLegend({
           ），从顶部顺时针。每一片是一段时间， 心率区间越高（Z1→Z5）越高、越亮。
         </p>
       </div>
-      <div className="row">
+      <div className="row" {...rowProps('curve')}>
         <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
           <circle
             cx="11"
@@ -351,7 +351,7 @@ export function SessionClockLegend({
           <b>内曲线</b> 同一圈上的心率，越高越靠外；淡圈是 70 bpm。
         </p>
       </div>
-      <div className="row">
+      <div className="row" {...rowProps('core')}>
         <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
           <circle
             cx="11"

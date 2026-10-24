@@ -185,6 +185,10 @@ export function ActivityDetail({
   const [scrubFrac, setScrubFrac] = useState<number | null>(null);
   /** vert 地形昼夜主题（按钮与 Vert 按钮并排，对齐参考站） */
   const [night, setNight] = useState(true);
+  /** 会话时钟图例悬浮联动：高亮对应部分 */
+  const [clockPart, setClockPart] = useState<'ring' | 'curve' | 'core' | null>(
+    null
+  );
   const scene = useVertScene(runId);
 
   useEffect(() => {
@@ -295,13 +299,20 @@ export function ActivityDetail({
                 }}
               >
                 <div style={{ width: 300 }}>
-                  <SessionGlyph activity={activity} size={300} glow hero />
+                  <SessionGlyph
+                    activity={activity}
+                    size={300}
+                    glow
+                    hero
+                    highlight={clockPart}
+                  />
                 </div>
               </div>
               <SessionClockLegend
                 color={color}
                 hours={(elapsedSeconds || seconds) / 3600}
                 durationLabel={fmtDuration(elapsedSeconds || seconds)}
+                onHover={setClockPart}
               />
             </>
           )}

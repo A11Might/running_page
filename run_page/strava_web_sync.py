@@ -250,18 +250,31 @@ def _sync_one(client, session, raw):
 
 
 def _backfill_hr(client, session):
-    """Fetch HR streams for stored activities that lack an hr_series.
+    """Fetch HR streams for stored activities missing (or at wrong resolution).
 
-    One-off repair for data synced before hr_series existed; only touches
-    activities that already have an average_heartrate (i.e. a watch with a
-    strap), so gym entries without HR are skipped for good.
+    Repair for data synced before hr_series existed, or downsampled at an
+    older HR_BUCKETS: refetch when the stored series is absent or its length
+    no longer matches. Only touches activities that already have an
+    average_heartrate (i.e. a watch with a strap), so gym entries without HR
+    are skipped for good.
     """
+    import json as _json
+
     from generator.db import Activity as DbActivity
 
     targets = (
         session.query(DbActivity).filter(DbActivity.average_heartrate.isnot(None)).all()
     )
-    todo = [a for a in targets if not a.hr_series]
+
+    def stale(a):
+        if not a.hr_series:
+            return True
+        try:
+            return len(_json.loads(a.hr_series)) != HR_BUCKETS
+        except (TypeError, ValueError):
+            return True
+
+    todo = [a for a in targets if stale(a)]
     print(f"backfilling HR series for {len(todo)}/{len(targets)} activities")
     done = 0
     for a in todo:
@@ -273,8 +286,6 @@ def _backfill_hr(client, session):
             continue
         series = _downsample_hr(streams.get("heartrate"))
         if series:
-            import json as _json
-
             a.hr_series = _json.dumps(series, separators=(",", ":"))
             session.commit()
             done += 1

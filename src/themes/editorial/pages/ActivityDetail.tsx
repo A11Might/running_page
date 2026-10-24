@@ -353,10 +353,16 @@ export function ActivityDetail({
                 <dt>最大心率</dt>
               </div>
             )}
-            {pace && (
+            {pace && sport === 'run' && (
               <div className="ed-figures-row">
                 <dd>{fmtPace(pace)} /km</dd>
                 <dt>平均配速</dt>
+              </div>
+            )}
+            {sport === 'ride' && activity.average_speed > 0.5 && (
+              <div className="ed-figures-row">
+                <dd>{(activity.average_speed * 3.6).toFixed(1)} km/h</dd>
+                <dt>平均速度</dt>
               </div>
             )}
             {activity.calories ? (

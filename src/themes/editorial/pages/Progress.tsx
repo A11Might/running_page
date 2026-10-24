@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Activity } from '@/types';
+import { SiteFooter } from '../components/sections';
 import {
   activitySeconds,
   activityYear,
@@ -230,11 +231,13 @@ export function Progress({ activities }: { activities: Activity[] }) {
 
       <section className="ed-section" aria-label="我做得更多吗">
         <div className="ed-chart-card">
-          <h3 className="ed-chart-title">我做得更多吗？</h3>
-          <p className="ed-chart-sub">
-            开始以来的每个月小时数 · 白线为 12 个月滚动均值 ·
-            聚焦年份全彩，往年变暗
-          </p>
+          <div className="ed-card-head">
+            <h2 className="ed-h2">我做得更多吗？</h2>
+            <p className="ed-sub">
+              开始以来的每个月小时数 · 白线为 12 个月滚动均值 ·
+              聚焦年份全彩，往年变暗
+            </p>
+          </div>
           <div className="ed-legend" style={{ marginTop: 14 }}>
             {sportsInBars.map((s) => (
               <span key={s}>
@@ -262,8 +265,10 @@ export function Progress({ activities }: { activities: Activity[] }) {
 
       <section className="ed-section" aria-label="我还在出现吗">
         <div className="ed-chart-card">
-          <h3 className="ed-chart-title">我还在出现吗？</h3>
-          <p className="ed-chart-sub">坚持比强度重要 · 当前年份计到今天为止</p>
+          <div className="ed-card-head">
+            <h2 className="ed-h2">我还在出现吗？</h2>
+            <p className="ed-sub">坚持比强度重要 · 当前年份计到今天为止</p>
+          </div>
           <div className="ed-showup-table" style={{ marginTop: 18 }}>
             <div className="ed-showup-head">
               <span>年份</span>
@@ -317,17 +322,21 @@ export function Progress({ activities }: { activities: Activity[] }) {
 
       <section className="ed-section" aria-label="距离与配速">
         <div className="ed-chart-card">
-          <h3 className="ed-chart-title">我跑得怎么样？</h3>
-          <p className="ed-chart-sub">
-            每次跑步的距离与平均配速 · 距离为对数刻度 ·
-            聚焦年份为跑步行，往年是灰点 · 虚线为典型值
-          </p>
+          <div className="ed-card-head">
+            <h2 className="ed-h2">我跑得怎么样？</h2>
+            <p className="ed-sub">
+              每次跑步的距离与平均配速 · 距离为对数刻度 ·
+              聚焦年份为跑步行，往年是灰点 · 虚线为典型值
+            </p>
+          </div>
           <PaceScatterChart activities={activities} focusYear={focus} />
           <p className="ed-chart-sub" style={{ marginTop: 16 }}>
             力量、攀岩这类运动没有配速信号，所以它们只计入上面的问题。诚实胜过取巧。
           </p>
         </div>
       </section>
+
+      <SiteFooter />
     </>
   );
 }

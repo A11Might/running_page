@@ -1766,3 +1766,617 @@ a.ed-link {
 .ed-h2-lg {
   font-size: 28px;
 }
+
+/* ══════════ 参考站模块复刻（2019 版规格，2026-10 实测）══════════ */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 卡片头：h2 22px + mono 副标题（参考站 cardHead） */
+.ed-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ed-h2 {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.ed-sub {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+/* ── 聚焦年份卡（YEAR IN FOCUS / THIS YEAR SO FAR 共用）────────── */
+
+.ed-focus-card2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px 40px;
+  padding: 28px 32px;
+  background: #151619;
+  border: 1px solid #3a3b40;
+  border-radius: 8px;
+}
+.ed-focus-card2 .year-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: none;
+  min-width: 220px;
+}
+.ed-focus-card2 .eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--ink-muted);
+}
+.ed-focus-card2 .big-year {
+  font-size: 120px;
+  font-weight: 900;
+  font-style: italic;
+  line-height: 0.85;
+  letter-spacing: -3.6px;
+}
+.ed-focus-card2 .compare {
+  max-width: 240px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-secondary);
+}
+.ed-focus-card2 .focus-body {
+  flex: 999 1 560px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.ed-focus-card2 .focus-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 28px;
+  margin: 0;
+}
+.ed-stat-tile {
+  display: grid;
+  gap: 6px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--hairline);
+}
+.ed-stat-tile dt {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.ed-stat-tile dd {
+  margin: 0;
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.ed-stat-tile .delta {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  letter-spacing: 0;
+}
+.ed-stat-tile .sport-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 26px;
+}
+
+/* ── 逐年对比（5 指标卡 + 可点击年份柱）────────────────────────── */
+
+.ed-yoy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ed-yoy-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 20px;
+  background: #151619;
+  border: 1px solid #3a3b40;
+  border-radius: 8px;
+}
+.ed-yoy-card .head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 8px;
+  flex-wrap: wrap;
+}
+.ed-yoy-card .head h3 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.ed-yoy-card .hi {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ed-yoy-card .bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 140px;
+  margin-top: auto;
+}
+.ed-yoy-card .bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.ed-yoy-card .bar .value {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 11px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+.ed-yoy-card .bar.is-focus .value {
+  color: var(--ink);
+  font-weight: 700;
+}
+.ed-yoy-card .bar .fill {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  height: calc((100% - 30px) * var(--h, 0));
+  background: #3a3b40;
+  border-radius: 3px 3px 0 0;
+  transition: background 0.2s ease;
+}
+.ed-yoy-card .bar.is-focus .fill {
+  background: var(--ink);
+}
+.ed-yoy-card .bar:not(.is-focus):hover .fill {
+  background: var(--ink-muted);
+}
+.ed-yoy-card .bar .yr {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 11px;
+  color: var(--ink-muted);
+}
+
+/* ── 每年构成（share 堆叠条）────────────────────────────────────── */
+
+.ed-share-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+}
+.ed-share-chart .legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
+.ed-share-chart .legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ed-share-chart .readout {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+  min-height: 1.7em;
+}
+.ed-share-chart .rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ed-share-chart .row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 64px;
+  gap: 12px;
+  align-items: center;
+  min-height: 44px;
+}
+.ed-share-chart .yr-btn {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.ed-share-chart .yr-btn:hover {
+  color: var(--ink);
+}
+.ed-share-chart .row.is-on .yr-btn,
+.ed-share-chart .row.is-on .total {
+  color: var(--ink);
+  font-weight: 700;
+}
+.ed-share-chart .bar-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 32px;
+  padding: 11px 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.ed-share-chart .seg {
+  flex: var(--f, 0) 1 0;
+  align-self: stretch;
+  min-width: 3px;
+  border-radius: 3px;
+  opacity: 0.55;
+}
+.ed-share-chart .row.is-on .seg {
+  opacity: 1;
+}
+.ed-share-chart .total {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ── 运动 × 年份（圆点矩阵表）──────────────────────────────────── */
+
+.ed-matrix-scroll {
+  overflow-x: auto;
+  margin-top: 14px;
+}
+table.ed-matrix {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 640px;
+  font-variant-numeric: tabular-nums;
+}
+.ed-matrix .corner {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  text-align: left;
+  padding: 6px 8px 6px 0;
+}
+.ed-matrix .year-head {
+  padding: 0 4px;
+  text-align: center;
+  border-bottom: 1px solid var(--hairline);
+}
+.ed-matrix .year-head.is-band {
+  background: rgba(240, 239, 236, 0.05);
+}
+.ed-matrix .year-head .yr-btn {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.ed-matrix .year-head .yr-btn[aria-pressed='true'] {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+  font-weight: 700;
+}
+.ed-matrix .year-head .yr-btn:hover {
+  color: var(--ink);
+}
+.ed-matrix .sport-label {
+  font-weight: 600;
+  font-size: 13px;
+  text-align: left;
+  padding: 8px 8px 8px 0;
+  white-space: nowrap;
+}
+.ed-matrix .cell {
+  padding: 0 4px;
+  text-align: center;
+}
+.ed-matrix .cell.is-band {
+  background: rgba(240, 239, 236, 0.05);
+}
+.ed-matrix .cell-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 77px;
+}
+.ed-matrix .bubble {
+  display: block;
+  flex: none;
+  border-radius: 50%;
+  background: var(--c);
+  opacity: 0.85;
+}
+.ed-matrix .bubble.is-empty {
+  width: 4px !important;
+  height: 4px !important;
+  background: #3a3b40;
+  opacity: 1;
+}
+.ed-matrix .cell-box .value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+.ed-matrix .total-head {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  padding: 6px 0 6px 12px;
+  text-align: right;
+  border-bottom: 1px solid var(--hairline);
+}
+.ed-matrix .total-cell {
+  padding: 8px 0 8px 12px;
+  text-align: right;
+}
+.ed-matrix .total-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+.ed-matrix .total-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink);
+  font-weight: 600;
+}
+.ed-matrix .track {
+  display: block;
+  width: 56px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+.ed-matrix .track .fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+
+/* ── 日历页：我何时运动 + 运动构成（两张半宽卡）───────────────── */
+
+.ed-half-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.ed-half-card {
+  flex: 1 1 420px;
+  min-width: 0;
+  padding: 28px;
+  background: #151619;
+  border: 1px solid #3a3b40;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ed-when {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.ed-when .readout {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+  min-height: 1.7em;
+}
+.ed-when .clock {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 1;
+  align-self: center;
+}
+.ed-when .clock svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+.ed-when .clock .guide {
+  fill: none;
+  stroke: var(--hairline);
+  stroke-width: 1;
+}
+.ed-when .wedge {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+.ed-when .wedge:hover,
+.ed-when .wedge:focus-visible {
+  background: rgba(240, 239, 236, 0.16);
+  outline: none;
+}
+.ed-mix {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.ed-mix .mix-row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 96px;
+  gap: 12px;
+  align-items: center;
+}
+.ed-mix .mix-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ed-mix .track {
+  display: block;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+.ed-mix .track .bar {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+.ed-mix .mix-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ── 页脚推荐（MORE FROM）───────────────────────────────────────── */
+
+.ed-site-footer {
+  margin-top: 72px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.ed-site-footer .head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ed-site-footer .label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+.ed-site-footer .since {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.ed-site-footer .sites {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(197px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ed-site-footer .sites a {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.2s ease;
+}
+.ed-site-footer .sites a:hover {
+  border-color: var(--ink-muted);
+}
+.ed-site-footer .sites .name {
+  font-size: 15px;
+  font-weight: 700;
+}
+.ed-site-footer .sites .note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-secondary);
+}
+.ed-site-footer .social {
+  display: flex;
+  gap: 18px;
+}
+.ed-site-footer .social a {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+  text-decoration: none;
+}
+.ed-site-footer .social a:hover {
+  color: var(--ink);
+}

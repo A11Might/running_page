@@ -17,7 +17,7 @@ import {
 } from '../lib/data';
 import { sortedByDate } from '../lib/track';
 import { RouteThumb, SessionGlyph } from '../components/SessionTile';
-import { SportBar, SportLegend } from '../components/charts';
+import { Delta, SiteFooter, StatTile } from '../components/sections';
 
 const zhDate = (d: Date) =>
   `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日`;
@@ -98,12 +98,6 @@ export function Home({
     [gridActivities]
   );
 
-  const delta = (now: number, before: number): string | null => {
-    if (before <= 0) return now > 0 ? 'new' : null;
-    const pct = Math.round(((now - before) / before) * 100);
-    return `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}% vs 去年同期`;
-  };
-
   const yearHeadingLabel =
     yearFilter === 'all'
       ? `${years[years.length - 1]}–${years[0]}`
@@ -142,74 +136,53 @@ export function Home({
         </div>
       </section>
 
-      {/* 今年至今 */}
+      {/* 今年迄今（THIS YEAR SO FAR：大字年份 + 指标格） */}
       {thisTotals.sessions > 0 && (
-        <section className="ed-section" aria-label="今年至今">
-          <div className="ed-focus-card">
-            <div className="ed-focus-left">
-              <span className="ed-focus-tag">今年至今</span>
-              <p className="ed-focus-year">{thisYear}</p>
-              <p className="ed-focus-note">
-                对比 {thisYear - 1} 年同期
-                <br />
-                （1 月 1 日 – {new Date().getMonth() + 1} 月{' '}
-                {new Date().getDate()} 日）
-              </p>
+        <section className="ed-section" aria-label="今年迄今">
+          <div className="ed-focus-card2">
+            <div className="year-block">
+              <span className="eyebrow">今年迄今</span>
+              <span className="big-year">{thisYear}</span>
+              <span className="compare">
+                对比 {thisYear - 1} 年同期（1 月 1 日 –{' '}
+                {new Date().getMonth() + 1} 月 {new Date().getDate()} 日）
+              </span>
             </div>
-            <div className="ed-focus-grid">
-              <div className="ed-focus-stat">
-                <span className="num">{Math.round(thisTotals.hours)}</span>
-                <span className="label">小时</span>
-                {lastTotals.hours > 0 && (
-                  <span className="delta">
-                    {delta(thisTotals.hours, lastTotals.hours)}
-                  </span>
-                )}
-              </div>
-              <div className="ed-focus-stat">
-                <span className="num">{thisTotals.sessions}</span>
-                <span className="label">次数</span>
-                {lastTotals.sessions > 0 && (
-                  <span className="delta">
-                    {delta(thisTotals.sessions, lastTotals.sessions)}
-                  </span>
-                )}
-              </div>
-              <div className="ed-focus-stat">
-                <span className="num">{thisTotals.activeDays}</span>
-                <span className="label">活跃天</span>
-                {lastTotals.activeDays > 0 && (
-                  <span className="delta">
-                    {delta(thisTotals.activeDays, lastTotals.activeDays)}
-                  </span>
-                )}
-              </div>
-              <div className="ed-focus-stat">
-                <span className="num">
-                  {new Set(thisPeriod.map((a) => sportOf(a))).size}
-                </span>
-                <span className="label">种运动</span>
-                {lastSportCount > 0 && (
-                  <span className="delta">
-                    {delta(
-                      new Set(thisPeriod.map((a) => sportOf(a))).size,
-                      lastSportCount
-                    )}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="ed-focus-bottom">
-              <div className="ed-focus-bargroup">
-                <SportBar activities={thisPeriod} />
-                <SportLegend activities={thisPeriod} />
-              </div>
-              <button
-                className="ed-btn ed-btn--outline"
-                onClick={() => navigate('years')}
-              >
-                对比历年 →
-              </button>
+            <div className="focus-body">
+              <dl className="focus-facts">
+                <StatTile
+                  label="小时"
+                  value={Math.round(thisTotals.hours)}
+                  delta={<Delta now={thisTotals.hours} before={lastTotals.hours} />}
+                />
+                <StatTile
+                  label="次数"
+                  value={thisTotals.sessions}
+                  delta={
+                    <Delta now={thisTotals.sessions} before={lastTotals.sessions} />
+                  }
+                />
+                <StatTile
+                  label="活跃天"
+                  value={thisTotals.activeDays}
+                  delta={
+                    <Delta
+                      now={thisTotals.activeDays}
+                      before={lastTotals.activeDays}
+                    />
+                  }
+                />
+                <StatTile
+                  label="运动"
+                  value={new Set(thisPeriod.map((a) => sportOf(a))).size}
+                  delta={
+                    <Delta
+                      now={new Set(thisPeriod.map((a) => sportOf(a))).size}
+                      before={lastSportCount}
+                    />
+                  }
+                />
+              </dl>
             </div>
           </div>
         </section>
@@ -466,6 +439,8 @@ export function Home({
           );
         })}
       </section>
+
+      <SiteFooter />
     </>
   );
 }

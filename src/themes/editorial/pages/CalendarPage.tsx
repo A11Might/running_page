@@ -11,7 +11,9 @@ import {
   SPORTS,
   streaks,
   totalsOf,
+  type SportKey,
 } from '../lib/data';
+import { SiteFooter } from '../components/sections';
 
 interface DayCell {
   dateKey: string; // YYYY-MM-DD
@@ -52,6 +54,26 @@ export function CalendarPage({
   );
   const totals = useMemo(() => totalsOf(yearActs), [yearActs]);
   const { longestStreak } = useMemo(() => streaks(yearActs), [yearActs]);
+
+  // 运动构成（按小时占比）
+  const mixRows = useMemo(() => {
+    const tally = new Map<SportKey, number>();
+    const counts = new Map<SportKey, number>();
+    for (const a of yearActs) {
+      const s = sportOf(a);
+      tally.set(s, (tally.get(s) ?? 0) + activitySeconds(a) / 3600);
+      counts.set(s, (counts.get(s) ?? 0) + 1);
+    }
+    const rows = [...tally.entries()]
+      .map(([sport, hours]) => ({
+        sport,
+        hours,
+        sessions: counts.get(sport) ?? 0,
+      }))
+      .sort((x, y) => y.hours - x.hours);
+    const max = Math.max(...rows.map((r) => r.hours), 0.01);
+    return rows.map((r) => ({ ...r, pct: (r.hours / max) * 100 }));
+  }, [yearActs]);
 
   const weeks = useMemo<DayCell[][]>(() => {
     const byDay = new Map<string, Activity[]>();
@@ -319,6 +341,142 @@ export function CalendarPage({
           </div>
         </div>
       </section>
+      {/* ── 我何时运动（When I move：按开始小时的环形时钟）────────── */}
+      <section className="ed-section" aria-label="我何时运动">
+        <div className="ed-half-row">
+          <div className="ed-half-card">
+            <div className="ed-card-head">
+              <h2 className="ed-h2">我何时运动</h2>
+              <p className="ed-sub">按开始小时统计，本地时间</p>
+            </div>
+            <WhenClock activities={yearActs} year={year} />
+          </div>
+
+          {/* ── 运动构成（Sport mix：小时占比条）────────────────── */}
+          <div className="ed-half-card">
+            <div className="ed-card-head">
+              <h2 className="ed-h2">运动构成</h2>
+              <p className="ed-sub">各运动的小时</p>
+            </div>
+            <ul className="ed-mix">
+              {mixRows.map((r) => (
+                <li key={r.sport} className="mix-row">
+                  <span className="mix-label">
+                    <span
+                      className="ed-dot"
+                      style={{ background: sportColor(r.sport) }}
+                    />
+                    {SPORTS[r.sport].zh}
+                  </span>
+                  <span className="track" aria-hidden>
+                    <span
+                      className="bar"
+                      style={{
+                        width: `${r.pct}%`,
+                        background: sportColor(r.sport),
+                      }}
+                    />
+                  </span>
+                  <span className="mix-value">
+                    {Math.round(r.hours)} h · {r.sessions} 次
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <SiteFooter />
     </>
+  );
+}
+
+/**
+ * 我何时运动 —— 24 小时环形时钟（参考站 When I move）：
+ * 圆环 r56–150（360 坐标系），每小时一个 clip-path 楔形按钮，
+ * 悬停/聚焦更新读数；空心底圈与外圈为 hairline 参考圆。
+ */
+function WhenClock({
+  activities,
+  year,
+}: {
+  activities: Activity[];
+  year: number;
+}) {
+  const [readout, setReadout] = useState('悬停一个小时');
+
+  // 每小时：总数 + 各运动次数
+  const hours = useMemo(() => {
+    const slots = Array.from({ length: 24 }, (_, h) => ({
+      hour: h,
+      total: 0,
+      by: new Map<SportKey, number>(),
+    }));
+    for (const a of activities) {
+      const h = new Date(
+        a.start_date_local.replace(' ', 'T')
+      ).getHours();
+      const slot = slots[h];
+      slot.total += 1;
+      const s = sportOf(a);
+      slot.by.set(s, (slot.by.get(s) ?? 0) + 1);
+    }
+    return slots;
+  }, [activities]);
+
+  const peak = useMemo(
+    () => hours.reduce((b, s) => (s.total > b.total ? s : b), hours[0]),
+    [hours]
+  );
+
+  // 楔形 clip-path（参考站 ae：外弧 r150 内弧 r56，各 7 个插值点）
+  const wedge = (h: number): string => {
+    const R_OUT = 150;
+    const R_IN = 56;
+    const a0 = (h / 24) * Math.PI * 2;
+    const a1 = ((h + 1) / 24) * Math.PI * 2;
+    const p = (a: number, r: number) =>
+      `${(((180 + r * Math.sin(a)) / 360) * 100).toFixed(2)}% ${(((180 - r * Math.cos(a)) / 360) * 100).toFixed(2)}%`;
+    const pts: string[] = [];
+    for (let i = 0; i <= 6; i++) pts.push(p(a0 + ((a1 - a0) * i) / 6, R_OUT));
+    for (let i = 6; i >= 0; i--) pts.push(p(a0 + ((a1 - a0) * i) / 6, R_IN));
+    return `polygon(${pts.join(', ')})`;
+  };
+
+  return (
+    <div className="ed-when">
+      <p className="readout">{readout}</p>
+      <div className="clock">
+        <svg viewBox="0 0 360 360" role="img" aria-label={`按开始小时统计，${year} 年：最忙的小时是 ${peak.hour}:00，共 ${peak.total} 次。`}>
+          <circle cx={180} cy={180} r={150} className="guide" />
+          <circle cx={180} cy={180} r={56} className="guide" />
+        </svg>
+        {hours.map((s) => {
+          const label = `${String(s.hour).padStart(2, '0')}:00`;
+          const parts = [...s.by.entries()]
+            .sort((x, y) => y[1] - x[1])
+            .map(([sp, n]) => `${SPORTS[sp].zh} ${n}`)
+            .join('，');
+          const tip = s.total
+            ? `${label} · ${s.total} 次${parts ? ` · ${parts}` : ''}`
+            : `${label} · 无运动`;
+          return (
+            <button
+              key={s.hour}
+              type="button"
+              className="wedge"
+              style={{ clipPath: wedge(s.hour) }}
+              title={tip}
+              aria-label={tip}
+              onMouseEnter={() => setReadout(tip)}
+              onFocus={() => setReadout(tip)}
+              onMouseLeave={() => setReadout('悬停一个小时')}
+              onBlur={() => setReadout('悬停一个小时')}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 }

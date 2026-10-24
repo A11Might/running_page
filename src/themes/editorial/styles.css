@@ -628,13 +628,17 @@ a.ed-link {
 .ed-glyph-legend .row {
   display: flex;
   gap: 10px;
-  align-items: baseline;
+  align-items: flex-start;
 }
 
+/* 图例小图标（swatch）：取自参考站原版 —— 28×28、muted 灰、不收缩 */
 .ed-glyph-legend .glyph-example {
-  flex: none;
-  align-self: center;
-  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  display: block;
+  overflow: visible;
+  color: #8c8b85;
 }
 
 .ed-glyph-legend .term {

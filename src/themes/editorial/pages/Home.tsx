@@ -22,40 +22,6 @@ import { SportBar, SportLegend } from '../components/charts';
 const zhDate = (d: Date) =>
   `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日`;
 
-// 图例示例：合成活动，渲染真实的 SessionGlyph，保证示例与网格瓦片永远一致
-// （type 用未映射值 → 'other' 中性灰，与参考站图例的中性示例色一致）
-const LEGEND_ROUTE_EXAMPLE: Activity = {
-  run_id: -1,
-  name: '路线形状示例',
-  distance: 4200,
-  moving_time: '0:32:00',
-  type: 'Example',
-  start_date: '2026-01-01 00:00:00',
-  start_date_local: '2026-01-01 08:00:00',
-  location_country: null,
-  summary_polyline:
-    '_pqrFgxleUoK_X_XoK_XnKoK_XvQg^~WgEvQvQ~WoKvQ~WoKf^wQ~W',
-  average_heartrate: null,
-  average_speed: 2.2,
-  elevation_gain: null,
-  source: 'example',
-  streak: 0,
-};
-
-const LEGEND_CLOCK_EXAMPLE: Activity = {
-  ...LEGEND_ROUTE_EXAMPLE,
-  run_id: -2,
-  name: '会话时钟示例',
-  summary_polyline: null,
-  moving_time: '1:00:00', // 恰好一小时 → 核心一圈，示范"每满一小时一圈"
-  hr_series: [
-    95, 98, 102, 108, 115, 122, 128, 134, 140, 145, 150, 153, 156, 158, 160,
-    162, 164, 165, 166, 165, 163, 164, 166, 167, 165, 163, 160, 157, 155, 158,
-    162, 165, 164, 161, 158, 155, 152, 148, 145, 142, 138, 134, 130, 126, 121,
-    116, 110, 104,
-  ],
-};
-
 export function Home({
   activities,
   navigate,
@@ -401,17 +367,55 @@ export function Home({
         </div>
 
         <div className="ed-glyph-legend">
+          {/* 图例图标直接取自参考站原版 SVG（28×28，muted 灰，起点点用主墨色） */}
           <div className="row">
-            <span className="glyph-example" aria-hidden="true">
-              <SessionGlyph activity={LEGEND_ROUTE_EXAMPLE} size={20} />
-            </span>
+            <svg className="glyph-example" viewBox="0 0 28 28" aria-hidden="true">
+              <path
+                d="M5 21C8 12 11 9 14 12C17 15 19 18 23 7"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx="5" cy="21" r="2" fill="var(--ink)" />
+            </svg>
             <span className="term">路线形状</span> 有 GPS
             的会话，画出轨迹留下的形状（白点是起点）。
           </div>
           <div className="row">
-            <span className="glyph-example" aria-hidden="true">
-              <SessionGlyph activity={LEGEND_CLOCK_EXAMPLE} size={20} />
-            </span>
+            <svg className="glyph-example" viewBox="0 0 28 28" aria-hidden="true">
+              <circle
+                cx="14"
+                cy="14"
+                r="11"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeDasharray="2.6 1"
+                strokeLinecap="butt"
+                opacity="0.6"
+              />
+              <circle
+                cx="14"
+                cy="14"
+                r="5.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                opacity="0.9"
+              />
+              <circle
+                cx="14"
+                cy="14"
+                r="2.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1"
+                opacity="0.9"
+              />
+            </svg>
             <span className="term">会话时钟</span> 没有 GPS
             的会话：一圈是整场活动，柱越高越亮 = 心率越高，内曲线是心率。
           </div>

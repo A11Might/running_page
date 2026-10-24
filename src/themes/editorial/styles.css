@@ -1131,40 +1131,35 @@ a.ed-link {
   color: var(--ink-muted);
 }
 
-/* ── Session figures（竖排：大数字左 / mono 标签右，对齐参考站）── */
+/* ── Session figures（两列网格：值在上 16px / mono 标签在下，对齐参考站）── */
 
 .ed-figures {
   margin: 26px 0 0;
   display: grid;
-  gap: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 32px;
 }
 
 .ed-figures-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 11px 0;
-  border-bottom: 1px solid var(--hairline);
-}
-
-.ed-figures-row:first-child {
-  border-top: 1px solid var(--edge-strong);
+  display: grid;
+  gap: 7px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
 }
 
 .ed-figures-row dd {
   margin: 0;
-  font-size: clamp(24px, 2.6vw, 34px);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.05;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--ink);
   white-space: nowrap;
 }
 
 .ed-figures-row dt {
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.16em;
+  font-size: 11px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-muted);
 }

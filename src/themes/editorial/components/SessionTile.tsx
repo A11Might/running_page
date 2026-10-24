@@ -54,19 +54,21 @@ function SessionClock({
   const c = size / 2;
   const R = c - (hero ? 8 : 5);
   const arr = activity.hr_series ?? [];
-  const hasHr = arr.filter((v) => v != null).length >= 6;
+  const vals = arr.filter((v): v is number => v != null);
+  const hasHr = vals.length >= 6;
+  // 每场活动内归一化：把这场的心率区间拉满整个柱高范围，
+  // 高低对比才像参考站那样参差（绝对区间只决定颜色）
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const v of vals) {
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  const spread = hasHr ? Math.max(hi - lo, 4) : 0;
+  const relFrac = (hr: number | null): number | null =>
+    hasHr && hr != null ? Math.min(Math.max((hr - lo) / spread, 0), 1) : null;
 
-  // 心率 → Z1..Z5 内的相对位置（绝对刻度，与参考站一致：区间越高柱越高越亮）
-  const Z_LO = [55, 100, 120, 140, 160];
-  const Z_HI = [100, 120, 140, 160, 200];
-  const hrFrac = (hr: number | null): number | null => {
-    if (hr == null) return null;
-    const z = Math.min(4, Math.max(0, hrZone(hr) ? hrZone(hr)! - 1 : 0));
-    const wz = Math.min(Math.max((hr - Z_LO[z]) / (Z_HI[z] - Z_LO[z]), 0), 1);
-    return (z + wz) / 5;
-  };
-
-  // ── 外环：一圈 = 整场，72 片（每桶一片），顺时针从顶部开始 ──
+  // ── 外环：一圈 = 整场，每桶一片，顺时针从顶部开始 ──
   const N = Math.max(arr.length, 48);
   const barMax = hero ? Math.max(R * 0.17, 9) : Math.max(R * 0.17, 4);
   const rIn = R - barMax;
@@ -77,10 +79,16 @@ function SessionClock({
     const hr = arr.length
       ? (arr[Math.min(arr.length - 1, Math.floor(t * arr.length))] ?? null)
       : null;
-    const f = hrFrac(hr);
-    // 无心率数据：统一中等高度与亮度（不编造波动）
-    const ff = f ?? 0.5;
-    const h = barMax * (0.22 + 0.78 * ff);
+    const f = relFrac(hr);
+    // 无心率数据：确定性伪随机高低，不冒充真实数据
+    const ff =
+      f ??
+      0.3 +
+        0.55 *
+          Math.abs(
+            Math.sin(i * 2.399 + (activity.run_id % 17)) * Math.cos(i * 0.7)
+          );
+    const h = barMax * (0.1 + 0.9 * ff);
     const a0 = -Math.PI / 2 + i * segArc; // 顶部顺时针
     slices.push(
       <path
@@ -94,29 +102,32 @@ function SessionClock({
           a0 + segArc * 0.82
         )}
         fill={color}
-        opacity={0.3 + 0.7 * ff}
+        opacity={0.28 + 0.68 * ff}
       />
     );
   }
 
-  // ── 内曲线：心率越高越靠外，70 bpm 淡圈为基准 ──
-  const HR_TOP = 200; // 满半径刻度
+  // ── 内曲线：同一场内的相对高低（0.26–0.95 半径），70 bpm 淡圈为基准 ──
   const HR_BASE = 70; // 淡圈基准
+  const PULSE_LO = 0.26;
+  const PULSE_HI = 0.95;
   const pulseR = rIn - (hero ? 7 : 4);
   const PULSE_N = Math.max(arr.length * 2, 64);
+  const pulseRadiusOf = (v: number): number =>
+    hasHr
+      ? pulseR * (PULSE_LO + (PULSE_HI - PULSE_LO) * ((v - lo) / spread))
+      : pulseR * 0.4;
   const rAt = (t: number): number => {
-    if (!hasHr) return pulseR * (HR_BASE / HR_TOP);
+    if (!hasHr) return pulseR * 0.4;
     const x = t * arr.length;
     const i0 = Math.min(arr.length - 1, Math.floor(x));
     const i1 = Math.min(arr.length - 1, i0 + 1);
     const v0 = arr[i0];
     const v1 = arr[i1];
-    const v =
-      v0 == null && v1 == null
-        ? HR_BASE
-        : (v0 ?? v1 ?? HR_BASE) +
-          ((v1 ?? v0 ?? HR_BASE) - (v0 ?? v1 ?? HR_BASE)) * (x - i0);
-    return pulseR * Math.min(Math.max(v / HR_TOP, 0.12), 1);
+    if (v0 == null && v1 == null) return pulseRadiusOf(lo);
+    const a = v0 ?? v1!;
+    const b = v1 ?? v0!;
+    return pulseRadiusOf(a + (b - a) * (x - i0));
   };
   const pulsePts: string[] = [];
   for (let i = 0; i < PULSE_N; i++) {
@@ -125,12 +136,16 @@ function SessionClock({
     pulsePts.push(`${p.x.toFixed(2)} ${p.y.toFixed(2)}`);
   }
   const pulseD = `M${pulsePts.join('L')}Z`;
-  const baseCircleR = pulseR * (HR_BASE / HR_TOP);
+  // 70 bpm 淡圈：只在这场心率范围覆盖它时画在对应相对位置
+  const baseCircleR =
+    hasHr && HR_BASE >= lo - 3 && HR_BASE <= hi + 3
+      ? pulseRadiusOf(HR_BASE)
+      : null;
 
   // ── 核心：种子点 + 每满一小时一圈 ──
   const dotR = hero ? 3 : 2;
   const coreRings = Math.max(2, Math.round(hours));
-  const coreOuter = baseCircleR * 0.72;
+  const coreOuter = (baseCircleR ?? pulseR * PULSE_LO) * 0.72;
   const coreEls: ReactElement[] = [];
   for (let k = coreRings; k >= 1; k--) {
     coreEls.push(
@@ -156,15 +171,17 @@ function SessionClock({
     >
       <g className={glow ? 'ed-glyph-glow' : undefined}>
         {slices}
-        <circle
-          cx={c}
-          cy={c}
-          r={baseCircleR}
-          fill="none"
-          stroke={color}
-          strokeWidth={hero ? 1 : 0.7}
-          opacity={0.28}
-        />
+        {baseCircleR != null && (
+          <circle
+            cx={c}
+            cy={c}
+            r={baseCircleR}
+            fill="none"
+            stroke={color}
+            strokeWidth={hero ? 1 : 0.7}
+            opacity={0.28}
+          />
+        )}
         <path
           d={pulseD}
           fill={color}

@@ -380,8 +380,10 @@ export function Home({
               />
               <circle cx="5" cy="21" r="2" fill="var(--ink)" />
             </svg>
-            <span className="term">路线形状</span> 有 GPS
-            的会话，画出轨迹留下的形状（白点是起点）。
+            <span className="text">
+              <span className="term">路线形状</span> 有 GPS
+              的会话，画出轨迹留下的形状（点是起点）。
+            </span>
           </div>
           <div className="row">
             <svg className="glyph-example" viewBox="0 0 28 28" aria-hidden="true">
@@ -416,8 +418,10 @@ export function Home({
                 opacity="0.9"
               />
             </svg>
-            <span className="term">会话时钟</span> 没有 GPS
-            的会话：一圈是整场活动，柱越高越亮 = 心率越高，内曲线是心率。
+            <span className="text">
+              <span className="term">会话时钟</span> 没有 GPS
+              的会话：一圈是整场活动，柱越高越亮 = 心率越高，内曲线是心率。
+            </span>
           </div>
         </div>
 
@@ -451,11 +455,7 @@ export function Home({
                     onClick={() => navigate(`a/${a.run_id}`)}
                     title={`${localDate(a).toLocaleDateString('zh-CN')} · ${a.name || SPORTS[sportOf(a)].zh}`}
                   >
-                    <SessionGlyph
-                      activity={a}
-                      size={Math.max(tileSize - 12, 40)}
-                      glow={glow}
-                    />
+                    <SessionGlyph activity={a} glow={glow} />
                     <span className="date">
                       {a.start_date_local.slice(2, 10).replace(/-/g, '.')}
                     </span>

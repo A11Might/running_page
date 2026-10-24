@@ -141,7 +141,7 @@ function MoreLikeThis({
               onClick={() => navigate(`a/${a.run_id}`)}
             >
               <span className="ed-similar-glyph">
-                <SessionGlyph activity={a} size={120} glow />
+                <SessionGlyph activity={a} variant="card" glow />
               </span>
               <span className="ed-similar-text">
                 <span className="tag">
@@ -301,9 +301,8 @@ export function ActivityDetail({
                 <div style={{ width: '100%', maxWidth: 440 }}>
                   <SessionGlyph
                     activity={activity}
-                    size={300}
+                    variant="hero"
                     glow
-                    hero
                     highlight={clockPart}
                   />
                 </div>

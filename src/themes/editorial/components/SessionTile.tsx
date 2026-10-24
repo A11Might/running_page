@@ -1,296 +1,281 @@
-import { memo, type ReactElement } from 'react';
+import { memo } from 'react';
 import type { Activity } from '@/types';
-import { activitySeconds, hrZone, sportColor, sportOf } from '../lib/data';
-import { trackOf, trackPath } from '../lib/track';
+import { activitySeconds, sportColor, sportOf } from '../lib/data';
+import { trackOf, trackPath, trackPathBoxPoints } from '../lib/track';
+
+/**
+ * 会话图形 —— 编辑主题的签名视觉，规格逐项取自参考站
+ * (activities.geekplux.com) 打包源码的破译结果：
+ *  - 坐标系 0..100、圆心 (50,50)；viewBox 四周留 8（hero 留 12）
+ *  - 有 GPS：轨迹线 + 起点点（主墨色）；无白描边、无终点标记
+ *  - 无 GPS：会话时钟（外环瓦片 / 内曲线 / 核心，详见 SessionClock）
+ */
+
+export type GlyphVariant = 'tile' | 'card' | 'hero';
+
+/** 各尺寸的线宽与点半径（参考站 vc 常量表） */
+const GLYPH_CFG: Record<
+  GlyphVariant,
+  {
+    vb: string;
+    route: number;
+    nonScaling: boolean;
+    startDot: number;
+    track: number;
+    hrLine: number;
+    tree: number;
+  }
+> = {
+  tile: {
+    vb: '-8 -8 116 116',
+    route: 1.8,
+    nonScaling: false,
+    startDot: 2.4,
+    track: 0.8,
+    hrLine: 1.3,
+    tree: 0.55,
+  },
+  card: {
+    vb: '-8 -8 116 116',
+    route: 2.5,
+    nonScaling: true,
+    startDot: 3.2,
+    track: 0.4,
+    hrLine: 0.9,
+    tree: 0.4,
+  },
+  hero: {
+    vb: '-12 -12 124 124',
+    route: 3,
+    nonScaling: true,
+    startDot: 2.8,
+    track: 0.3,
+    hrLine: 0.7,
+    tree: 0.3,
+  },
+};
+
+/** 时钟槽位数（参考站心率桶固定 48 个） */
+const SLOTS = 48;
+/** 瓦片间角隙（弧度，参考站 a = 0.014） */
+const SLOT_GAP = 0.014;
+/** 区间透明度 Z1→Z5 */
+const ZONE_OPACITY = [0.3, 0.47, 0.64, 0.82, 1];
+/**
+ * 个人最大心率：区间阈值 = 最大心率的 50%–90%，每 10% 一档。
+ * 参考站取 meta.hrmax（作者本人 197）；按自己的实际情况调整。
+ */
+const HR_MAX = 190;
+
+const TAU = Math.PI * 2;
+
+/** 极坐标 → 顶点（0° 在 12 点方向，顺时针，参考站 fc） */
+const pt = (a: number, r: number) =>
+  `${(50 + r * Math.sin(a)).toFixed(2)} ${(50 - r * Math.cos(a)).toFixed(2)}`;
+
+/** 环形扇区（参考站 pc） */
+function sector(a1: number, a2: number, r0: number, r1: number) {
+  const large = a2 - a1 > Math.PI ? 1 : 0;
+  return `M${pt(a1, r0)}L${pt(a1, r1)}A${r1} ${r1} 0 ${large} 1 ${pt(a2, r1)}L${pt(a2, r0)}A${r0} ${r0} 0 ${large} 0 ${pt(a1, r0)}Z`;
+}
+
+/** 心率区间（0 基）：Z(z+1) = 最大心率的 50%+10%·z 以上（参考站 dc） */
+const zoneOf = (v: number | null): number =>
+  v
+    ? Math.max(0, Math.min(4, Math.floor((v / HR_MAX - 0.5) * 10)))
+    : 0;
+
+/** 心率序列重采样到固定 48 槽（每槽取中点所在的桶） */
+function resampleSlots(arr: (number | null)[]): (number | null)[] {
+  const out: (number | null)[] = [];
+  for (let i = 0; i < SLOTS; i++) {
+    const x = ((i + 0.5) / SLOTS) * arr.length;
+    out.push(arr[Math.min(arr.length - 1, Math.floor(x))] ?? null);
+  }
+  return out;
+}
+
+const SVG_BASE = {
+  width: '100%',
+  height: 'auto',
+  display: 'block',
+  overflow: 'visible',
+} as const;
 
 interface GlyphProps {
   activity: Activity;
-  size?: number;
+  variant?: GlyphVariant;
   glow?: boolean;
-  /** 详情页用：画笔更粗、显示起终点 */
-  hero?: boolean;
   /** 图例悬浮联动：高亮指定部分，其余淡出（仅会话时钟生效） */
   highlight?: 'ring' | 'curve' | 'core' | null;
 }
 
-/** 极坐标辅助 */
-const polar = (cx: number, cy: number, r: number, a: number) => ({
-  x: cx + r * Math.cos(a),
-  y: cy + r * Math.sin(a),
-});
-
-/** 环形扇区（内半径 r0 → 外半径 r1），用于径向柱 */
-function sectorPath(
-  cx: number,
-  cy: number,
-  r0: number,
-  r1: number,
-  a1: number,
-  a2: number
-) {
-  const p0 = polar(cx, cy, r0, a1);
-  const p1 = polar(cx, cy, r1, a1);
-  const p2 = polar(cx, cy, r1, a2);
-  const p3 = polar(cx, cy, r0, a2);
-  const large = a2 - a1 > Math.PI ? 1 : 0;
-  return `M${p0.x.toFixed(2)} ${p0.y.toFixed(2)} L${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A${r1} ${r1} 0 ${large} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)} L${p3.x.toFixed(2)} ${p3.y.toFixed(2)} A${r0} ${r0} 0 ${large} 0 ${p0.x.toFixed(2)} ${p0.y.toFixed(2)}Z`;
-}
-
 /**
- * 会话时钟 —— 无 GPS 会话的签名视觉（严格对齐参考站详情页的图例说明）：
- *  - 外环：一圈 = 整场活动，从顶部顺时针；每片是一段时间，
- *    心率区间越高（Z1→Z5）越高、越亮；颜色为运动色单色系
- *  - 内曲线：同一圈上的心率，越高越靠外；淡圈是 70 bpm 基准
- *  - 核心：种子圆点，每满一小时一圈
+ * 会话时钟（参考站 hc/mc 的逐行移植）：
+ *  - 外环：一圈 = 整场活动，48 个瓦片从顶部顺时针；
+ *    内缘 r=30，Z(z) 外缘 33+2.6z，角隙 0.014rad，透明度按区间
+ *  - 内曲线：r = 12 + clamp((v−70)/120, 0, 1)·15，槽位中心取样；
+ *    12 即 70 bpm 基准圈（hairline 色）；空桶跳过、直线跨越
+ *  - 核心：不足一小时 = 种子点 r=1.6；满 k 小时 = k 圈年轮，
+ *    半径 1.2 + k·min(1.6, 9.5/k)，此时不画种子点
  */
 function SessionClock({
   activity,
-  size,
-  hero,
+  variant,
   glow,
   color,
   highlight,
-}: Required<Pick<GlyphProps, 'size' | 'hero' | 'glow'>> & { color: string } & {
+}: {
   activity: Activity;
+  variant: GlyphVariant;
+  glow: boolean;
+  color: string;
   highlight?: 'ring' | 'curve' | 'core' | null;
 }) {
-  const hours = activitySeconds(activity) / 3600;
-  const c = size / 2;
-  const arr = activity.hr_series ?? [];
-  const hasHr = arr.filter((v) => v != null).length >= 6;
+  const minutes = activitySeconds(activity) / 60;
+  const cfg = GLYPH_CFG[variant];
+  const raw = activity.hr_series ?? [];
+  const slots = raw.length
+    ? resampleSlots(raw)
+    : (Array.from({ length: SLOTS }, () => null) as (number | null)[]);
 
-  // ── 外环：固定 48 槽，瓦片内缘统一，高度按心率区间量化（参考站结构）──
-  const SLOTS = 48;
-  const ringIn = c * 0.48; // 瓦片内缘半径
-  const bandStep = c * 0.042; // 每级区间的高度
-  const slotArc = (Math.PI * 2) / SLOTS;
-  const ZONE_OPACITY = [0.3, 0.47, 0.64, 0.82, 1.0];
+  // ── 外环瓦片 ──
   const zoneSubs: string[][] = [[], [], [], [], []];
-  for (let i = 0; i < SLOTS; i++) {
-    const hr = arr.length
-      ? (arr[Math.min(arr.length - 1, Math.floor((i / SLOTS) * arr.length))] ??
-        null)
-      : null;
-    let z: number;
-    if (hr != null) {
-      z = hrZone(hr) ?? 1;
-    } else {
-      // 无心率数据：确定性伪随机分布，不冒充真实数据
-      const f = Math.abs(
-        Math.sin(i * 2.399 + (activity.run_id % 17)) * Math.cos(i * 0.7)
-      );
-      z = Math.max(1, Math.min(5, Math.round(f * 4) + 1));
-    }
-    const a1 = -Math.PI / 2 + i * slotArc + slotArc * 0.015;
-    const a2 = -Math.PI / 2 + i * slotArc + slotArc * 0.985;
-    zoneSubs[z - 1].push(
-      sectorPath(c, c, ringIn, ringIn + bandStep * z, a1, a2)
-    );
+  for (let t = 0; t < SLOTS; t++) {
+    const z = zoneOf(slots[t]);
+    const a1 = (t / SLOTS) * TAU + SLOT_GAP / 2;
+    const a2 = ((t + 1) / SLOTS) * TAU - SLOT_GAP / 2;
+    zoneSubs[z].push(sector(a1, a2, 30, 33 + z * 2.6));
   }
-  const ringPaths = zoneSubs.map((subs, zi) =>
-    subs.length ? (
-      <path
-        key={zi}
-        d={subs.join('')}
-        fill={color}
-        opacity={ZONE_OPACITY[zi]}
-      />
-    ) : null
-  );
 
-  // ── 内曲线：绝对刻度 60–180 bpm（参考站），折线锐利 ──
-  // 空心率桶前值延续（避免曲线凹陷到 70 bpm 断裂）
-  const cleaned: number[] = [];
-  let lastV: number | null = null;
-  for (const v of arr) {
-    if (v != null) lastV = v;
-    cleaned.push(lastV ?? 70);
+  // ── 内曲线 + 70 bpm 基线（反向串联成环带）──
+  let hrLine = '';
+  let base = '';
+  for (let t = 0; t < SLOTS; t++) {
+    const v = slots[t];
+    if (!v) continue;
+    const a = ((t + 0.5) / SLOTS) * TAU;
+    const r = 12 + Math.max(0, Math.min(1, (v - 70) / 120)) * 15;
+    hrLine += (hrLine ? 'L' : 'M') + pt(a, r);
+    base = `L${pt(a, 12)}` + base;
   }
-  for (let i = cleaned.length - 1; i >= 0; i--) {
-    if (cleaned[i] === 70 && arr[i] == null) {
-      // 尾部空桶向后取最近的非空值
-      let j = i;
-      while (j < arr.length && arr[j] == null) j++;
-      if (j < arr.length && arr[j] != null) cleaned[i] = arr[j]!;
-    }
-  }
-  const curveR = (v: number): number =>
-    c * (0.17 + ((Math.min(Math.max(v, 60), 180) - 60) / 120) * 0.3);
-  const PULSE_N = Math.max(Math.min(cleaned.length, 144), 64);
-  const pulsePts: string[] = [];
-  for (let i = 0; i < PULSE_N; i++) {
-    const a = -Math.PI / 2 + (i / PULSE_N) * Math.PI * 2;
-    const x = (i / PULSE_N) * cleaned.length;
-    const i0 = Math.min(cleaned.length - 1, Math.floor(x));
-    const i1 = Math.min(cleaned.length - 1, i0 + 1);
-    const v = cleaned[i0] + (cleaned[i1] - cleaned[i0]) * (x - i0);
-    const p = polar(c, c, curveR(v), a);
-    pulsePts.push(`${p.x.toFixed(2)} ${p.y.toFixed(2)}`);
-  }
-  const pulseD = `M${pulsePts.join('L')}Z`;
-  const baseCircleR = curveR(70);
-  // 填充带 = 曲线与 70 bpm 圈之间的环（even-odd，不填到圆心 —— 对齐参考站遮罩效果）
-  const fillBandD =
-    cleaned.length > 0
-      ? `${pulseD}M${(c + baseCircleR).toFixed(2)} ${c}A${baseCircleR.toFixed(2)} ${baseCircleR.toFixed(2)} 0 1 0 ${(c - baseCircleR).toFixed(2)} ${c}A${baseCircleR.toFixed(2)} ${baseCircleR.toFixed(2)} 0 1 0 ${(c + baseCircleR).toFixed(2)} ${c}Z`
-      : pulseD;
+  const hrArea = hrLine ? `${hrLine}${base}Z` : '';
 
-  // ── 核心：种子点 + 每满一小时一圈（r = 1.2 + 1.6k，参考站实测）──
-  const seedR = c * 0.026;
-  const rings = Math.floor(hours);
-  const ringRs = Array.from(
-    { length: rings },
-    (_, k) => c * (1.2 + 1.6 * (k + 1)) * 0.0161
-  );
+  // ── 核心 ──
+  const hours = Math.floor(minutes / 60);
+  const ringRadii =
+    hours > 0
+      ? Array.from(
+          { length: hours },
+          (_, k) => 1.2 + (k + 1) * Math.min(1.6, 9.5 / hours)
+        )
+      : [];
+
   const dim = (part: 'ring' | 'curve' | 'core') =>
     highlight && highlight !== part ? 0.2 : 1;
+  const nsc = cfg.nonScaling
+    ? { vectorEffect: 'non-scaling-stroke' as const }
+    : {};
+  const fade = { transition: 'opacity 0.25s ease' };
 
   return (
     <svg
-      viewBox={`0 0 ${size} ${size}`}
+      viewBox={cfg.vb}
       role="img"
       aria-label={`${activity.name} 会话时钟`}
-      style={{ color, overflow: 'visible' }}
+      className={glow ? 'ed-glyph-glow' : undefined}
+      style={{ color, ...SVG_BASE }}
     >
-      <g
-        className={glow ? 'ed-glyph-glow' : undefined}
-        style={{ opacity: dim('ring'), transition: 'opacity 0.25s ease' }}
-      >
-        {ringPaths}
-      </g>
-      <g style={{ opacity: dim('curve'), transition: 'opacity 0.25s ease' }}>
-        {/* 70 bpm 基准圈：深色发丝线（参考站），不是运动色 */}
-        <circle
-          cx={c}
-          cy={c}
-          r={baseCircleR}
-          fill="none"
-          stroke="#26272b"
-          strokeWidth={Math.max(c * 0.005, 0.3)}
-        />
-        {/* 填充带：曲线与 70 bpm 圈之间的环形 */}
-        <path
-          d={fillBandD}
-          fill={color}
-          fillOpacity={0.16}
-          fillRule="evenodd"
-        />
-        <path
-          d={pulseD}
-          fill="none"
-          stroke={color}
-          strokeWidth={hero ? 2 : 1.1}
-          strokeLinejoin="round"
-        />
-      </g>
-      <g style={{ opacity: dim('core'), transition: 'opacity 0.25s ease' }}>
-        {ringRs.map((r, k) => (
+      <g data-part="clock">
+        <g style={{ opacity: dim('curve'), ...fade }}>
           <circle
-            key={k}
-            cx={c}
-            cy={c}
-            r={r}
+            cx={50}
+            cy={50}
+            r={12}
             fill="none"
-            stroke={color}
-            strokeWidth={Math.max(c * 0.005, 0.3)}
-            opacity={0.9}
+            stroke="var(--hairline)"
+            strokeWidth={cfg.track}
+            {...nsc}
           />
-        ))}
-        <circle cx={c} cy={c} r={seedR} fill={color} />
+          {hrArea ? <path d={hrArea} fill={color} opacity={0.16} /> : null}
+          {hrLine ? (
+            <path
+              d={hrLine}
+              fill="none"
+              stroke={color}
+              strokeWidth={cfg.hrLine}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              {...nsc}
+            />
+          ) : null}
+        </g>
+        <g style={{ opacity: dim('ring'), ...fade }}>
+          {zoneSubs.map((subs, z) =>
+            subs.length ? (
+              <path
+                key={z}
+                d={subs.join('')}
+                fill={color}
+                opacity={ZONE_OPACITY[z]}
+              />
+            ) : null
+          )}
+        </g>
+        <g style={{ opacity: dim('core'), ...fade }}>
+          {ringRadii.map((r, k) => (
+            <circle
+              key={k}
+              cx={50}
+              cy={50}
+              r={r}
+              fill="none"
+              stroke={color}
+              strokeWidth={cfg.tree}
+              opacity={0.9}
+              {...nsc}
+            />
+          ))}
+          {hours === 0 ? <circle cx={50} cy={50} r={1.6} fill={color} /> : null}
+        </g>
       </g>
     </svg>
   );
 }
 
-/**
- * 会话图形 —— 编辑主题的签名视觉：
- *  - 有 GPS：轨迹按等比投影画成"路线形状"（route shape），起点白点
- *  - 无 GPS：会话时钟（session clock）
- */
 export const SessionGlyph = memo(function SessionGlyph({
   activity,
-  size = 84,
+  variant = 'tile',
   glow = false,
-  hero = false,
   highlight = null,
 }: GlyphProps) {
-  const sport = sportOf(activity);
-  const color = sportColor(sport);
+  const color = sportColor(sportOf(activity));
+  const cfg = GLYPH_CFG[variant];
   const track = trackOf(activity);
-  // 参考站网格轨迹是发丝线；白描边只留详情页大图用
-  const strokeWidth = hero ? 3 : 1.2;
-  const pad = hero ? 10 : 7;
 
   if (track && track.length >= 2) {
-    const { d, points } = trackPath(track, size, pad);
-    const startPt = points[0];
-    const endPt = points[points.length - 1];
-    const isLoop =
-      Math.hypot(startPt.lat - endPt.lat, startPt.lng - endPt.lng) <
-      size * 0.02;
+    const { d, points } = trackPath(track, 100, 0);
+    const start = points[0];
     return (
       <svg
-        viewBox={`0 0 ${size} ${size}`}
+        viewBox={cfg.vb}
         role="img"
         aria-label={`${activity.name} 路线`}
-        style={{ color, overflow: 'visible' }}
+        className={glow ? 'ed-glyph-glow' : undefined}
+        style={{ color, ...SVG_BASE }}
       >
-        {hero && (
-          <path
-            d={d}
-            fill="none"
-            stroke="#f0efec"
-            strokeWidth={strokeWidth + 1}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity={0.9}
-          />
-        )}
         <path
           d={d}
           fill="none"
           stroke={color}
-          strokeWidth={strokeWidth}
+          strokeWidth={cfg.route}
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={glow ? 'ed-glyph-glow' : undefined}
+          {...(cfg.nonScaling
+            ? { vectorEffect: 'non-scaling-stroke' as const }
+            : {})}
         />
-        {/* 起点：白点 + 细环（对齐参考站的可见起点标记） */}
-        <circle
-          cx={startPt.lat}
-          cy={startPt.lng}
-          r={hero ? 4.4 : 2}
-          fill="#f0efec"
-        />
-        <circle
-          cx={startPt.lat}
-          cy={startPt.lng}
-          r={hero ? 6 : 3.1}
-          fill="none"
-          stroke="#f0efec"
-          strokeWidth={hero ? 1.4 : 0.8}
-          opacity={0.55}
-        />
-        {/* 终点：详情页大图才画（环线共用起终点时只画一个），网格瓦片只留起点 */}
-        {hero &&
-          (isLoop ? (
-            <circle
-              cx={endPt.lat}
-              cy={endPt.lng}
-              r={2.6}
-              fill={color}
-              stroke="#f0efec"
-              strokeWidth={1}
-            />
-          ) : (
-            <circle
-              cx={endPt.lat}
-              cy={endPt.lng}
-              r={2.8}
-              fill="#f0efec"
-              opacity={0.9}
-            />
-          ))}
+        <circle cx={start.lat} cy={start.lng} r={cfg.startDot} fill="var(--ink)" />
       </svg>
     );
   }
@@ -298,8 +283,7 @@ export const SessionGlyph = memo(function SessionGlyph({
   return (
     <SessionClock
       activity={activity}
-      size={size}
-      hero={hero}
+      variant={variant}
       glow={glow}
       color={color}
       highlight={highlight}
@@ -335,10 +319,22 @@ export function SessionClockLegend({
             const f = 0.25 + 0.75 * Math.abs(Math.sin(i * 1.7));
             const r0 = 6.5;
             const r1 = r0 + 3.6 * f;
-            const p0 = polar(11, 11, r0, a + 0.05);
-            const p1 = polar(11, 11, r1, a + 0.05);
-            const p2 = polar(11, 11, r1, a + 0.24);
-            const p3 = polar(11, 11, r0, a + 0.24);
+            const p0 = {
+              x: 11 + r0 * Math.cos(a + 0.05),
+              y: 11 + r0 * Math.sin(a + 0.05),
+            };
+            const p1 = {
+              x: 11 + r1 * Math.cos(a + 0.05),
+              y: 11 + r1 * Math.sin(a + 0.05),
+            };
+            const p2 = {
+              x: 11 + r1 * Math.cos(a + 0.24),
+              y: 11 + r1 * Math.sin(a + 0.24),
+            };
+            const p3 = {
+              x: 11 + r0 * Math.cos(a + 0.24),
+              y: 11 + r0 * Math.sin(a + 0.24),
+            };
             return (
               <path
                 key={i}
@@ -419,27 +415,38 @@ export const RouteThumb = memo(function RouteThumb({
   width?: number;
   height?: number;
 }) {
-  const track = trackOf(activity);
+  // 卡片缩略图：线宽与起终点用 card 档（non-scaling，屏幕像素恒定）
+  const cfg = GLYPH_CFG.card;
   const color = sportColor(sportOf(activity));
+  const track = trackOf(activity);
   if (!track || track.length < 2) {
-    // 无 GPS：小号会话时钟
-    const s = Math.min(width, height) - 6;
+    // 无 GPS：小号会话时钟（card 档）
+    const s = Math.min(width, height);
     return (
-      <svg width={width} height={height} role="img" aria-label={activity.name}>
-        <g transform={`translate(${(width - s) / 2} ${(height - s) / 2})`}>
+      <div
+        style={{
+          width,
+          height,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        role="img"
+        aria-label={activity.name}
+      >
+        <div style={{ width: s, height: s }}>
           <SessionClock
             activity={activity}
-            size={s}
-            hero={false}
+            variant="card"
             glow={false}
             color={color}
           />
-        </g>
-      </svg>
+        </div>
+      </div>
     );
   }
-  const size = Math.max(width, height);
-  const { d } = trackPath(track, size, 8);
+  const { d, pts } = trackPathBoxPoints(track, width, height, 8);
+  const start = pts[0];
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
@@ -451,11 +458,12 @@ export const RouteThumb = memo(function RouteThumb({
         d={d}
         fill="none"
         stroke={color}
-        strokeWidth={1.4}
+        strokeWidth={cfg.route}
         strokeLinecap="round"
         strokeLinejoin="round"
-        transform={`translate(${(size - width) / 2} ${Math.max((size - height) / 2, 0)})`}
+        vectorEffect="non-scaling-stroke"
       />
+      <circle cx={start.x} cy={start.y} r={cfg.startDot} fill="var(--ink)" />
     </svg>
   );
 });

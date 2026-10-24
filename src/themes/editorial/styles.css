@@ -627,8 +627,13 @@ a.ed-link {
 
 .ed-glyph-legend .row {
   display: flex;
-  gap: 10px;
   align-items: flex-start;
+  gap: 12px;
+}
+
+.ed-glyph-legend .text {
+  line-height: 1.5;
+  min-width: 0;
 }
 
 /* 图例小图标（swatch）：取自参考站原版 —— 28×28、muted 灰、不收缩 */
@@ -1750,8 +1755,11 @@ a.ed-link {
 }
 
 /* glow 滤镜下的发光 */
+/* 参考站原版发光：3px 模糊 + 53.3% 透明度混合 */
 .ed-glyph-glow {
-  filter: drop-shadow(0 0 3px currentColor);
+  filter: drop-shadow(
+    0 0 3px color-mix(in srgb, currentcolor 53.3%, transparent)
+  );
 }
 
 /* Records 页区块标题（参考站该页 H2 为 28px） */

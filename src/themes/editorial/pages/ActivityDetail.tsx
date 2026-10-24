@@ -435,15 +435,11 @@ export function ActivityDetail({
       {hrVals.length >= 6 && (
         <section className="ed-section" aria-label="心率">
           <div className="ed-chart-card">
-            <div className="ed-section-head" style={{ marginBottom: 14 }}>
-              <h2 className="ed-section-title" style={{ fontSize: 24 }}>
-                心率
-              </h2>
-              <span className="ed-section-note">
-                平均 {Math.round(activity.average_heartrate ?? 0)} · 峰值{' '}
-                {maxHr} bpm
-              </span>
-            </div>
+            <h2 className="ed-chart-title">心率</h2>
+            <p className="ed-chart-sub">
+              平均 {Math.round(activity.average_heartrate ?? 0)} · 峰值 {maxHr}{' '}
+              bpm
+            </p>
             <HrChart
               activity={activity}
               color={color}
@@ -452,10 +448,19 @@ export function ActivityDetail({
               elapsedSeconds={elapsedSeconds || seconds}
             />
             <div className="ed-hr-axis">
-              <span>拖动图表或高程剖面回放 · Esc 清除</span>
+              <span>
+                {scrubFrac != null
+                  ? (() => {
+                      const total = Math.round(
+                        ((elapsedSeconds || seconds) / 60) * scrubFrac
+                      );
+                      return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+                    })()
+                  : '开始'}
+              </span>
               <span>{fmtDuration(elapsedSeconds || seconds)}</span>
             </div>
-            {/* 心率区间的时间分布（对齐参考站的 Z1–Z5 分布行） */}
+            {/* 心率区间分布（对齐参考站：跑步用公里，室内用分钟） */}
             <div className="ed-zone-row">
               {zoneMinutes.map(({ zone, minutes }, i) =>
                 minutes >= 0.5 ? (
@@ -464,7 +469,10 @@ export function ActivityDetail({
                       className="dot"
                       style={{ background: ZONE_COLORS_RGB[i] }}
                     />
-                    {Math.round(minutes)} 分钟 · Z{zone}
+                    {activity.distance >= 1000
+                      ? `${(((minutes / 60) * (activity.distance / 1000)) / ((elapsedSeconds || seconds) / 3600)).toFixed(1)} km`
+                      : `${Math.round(minutes)} 分钟`}{' '}
+                    Z{zone}
                   </span>
                 ) : null
               )}

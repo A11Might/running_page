@@ -742,6 +742,23 @@ export function HrChart({
         })()
       : null;
 
+  // X 轴：钟表时刻（参考站格式），从开跑时刻起算
+  const startClock = (() => {
+    const m = activity.start_date_local.match(
+      /(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/
+    );
+    if (!m) return null;
+    return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+  })();
+  const clockAt = (f: number): string => {
+    if (!startClock) {
+      const total = Math.round((elapsedSeconds / 60) * f);
+      return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+    }
+    const d = new Date(startClock.getTime() + elapsedSeconds * 1000 * f);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
   const svgRef = useRef<SVGSVGElement>(null);
   const draggingRef = useRef(false);
 
@@ -859,7 +876,7 @@ export function HrChart({
           )}
         </g>
       )}
-      {/* X 轴时间刻度 */}
+      {/* X 轴时间刻度（钟表时刻） */}
       {[0, 0.25, 0.5, 0.75, 1].map((f) => (
         <text
           key={f}
@@ -869,10 +886,7 @@ export function HrChart({
           fill="#55565c"
           textAnchor={f === 0 ? 'start' : f === 1 ? 'end' : 'middle'}
         >
-          {(() => {
-            const total = Math.round((elapsedSeconds / 60) * f);
-            return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-          })()}
+          {clockAt(f)}
         </text>
       ))}
     </svg>

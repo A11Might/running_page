@@ -52,15 +52,16 @@ export function VertScene({
   scene,
   scrub,
   onScrub,
+  night,
 }: {
   activity: Activity;
   scene: Scene;
   scrub: number | null;
   onScrub: (m: number | null) => void;
+  night: boolean;
 }) {
   const viewRef = useRef<TerrainViewHandle>(null);
   const [flat, setFlat] = useState(false);
-  const [night, setNight] = useState(true);
   const sport = sportOf(activity);
   const color = sportColor(sport);
 
@@ -108,27 +109,24 @@ export function VertScene({
         <button
           className="ed-btn ed-btn--ghost"
           onClick={() => viewRef.current?.rotateBy(Math.PI / 5)}
+          title="快捷键 R"
         >
-          ↻ 旋转 (R)
+          旋转
         </button>
         <button
           className="ed-btn ed-btn--ghost"
           onClick={() => setFlat((v) => !v)}
           aria-pressed={flat}
+          title="快捷键 F"
         >
-          ⛶ {flat ? '3D 视角' : '平面'} (F)
+          {flat ? '3D 视角' : '平面图'}
         </button>
         <button
           className="ed-btn ed-btn--ghost"
           onClick={() => viewRef.current?.resetView()}
         >
-          ⟲ 重置
+          重置
         </button>
-        <span className="ed-vert-marks" aria-hidden>
-          <span>○ 起点</span>
-          <span>◉ 终点</span>
-          <span>▲ 最高点</span>
-        </span>
       </div>
       <div style={{ marginTop: 18 }}>
         <ElevationProfile
@@ -139,14 +137,7 @@ export function VertScene({
           label={`${activity.name} 高程剖面`}
         />
       </div>
-      <div className="ed-vert-actions">
-        <button
-          className="ed-btn ed-btn--outline"
-          onClick={() => setNight((v) => !v)}
-          aria-pressed={!night}
-        >
-          {night ? '☀ 日间模式' : '☾ 夜间模式'}
-        </button>
+      <div className="ed-vert-attribution-row">
         <a
           className="ed-vert-attribution"
           href={TERRAIN_ATTRIBUTION_LINK.href}

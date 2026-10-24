@@ -1090,12 +1090,14 @@ a.ed-link {
   align-items: start;
 }
 
+/* 参考站：海报在左栏垂直居中 */
 .ed-poster {
   position: relative;
   border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
   padding: 28px;
   background: var(--raised);
+  align-self: center;
 }
 
 .ed-poster svg {
@@ -1115,7 +1117,7 @@ a.ed-link {
 }
 
 .ed-detail-title {
-  font-size: clamp(48px, 7vw, 92px);
+  font-size: clamp(48px, 6vw, 88px);
   font-weight: 900;
   font-style: italic;
   letter-spacing: var(--display-tracking);
@@ -1205,6 +1207,52 @@ a.ed-link {
   font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--ink-muted);
+}
+
+/* ── 前后导航（右栏内，两个半宽链接并排，对齐参考站）────────────── */
+
+.ed-detail-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 26px;
+}
+
+.ed-detail-nav-link {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.12s ease;
+}
+
+.ed-detail-nav-link:hover {
+  color: var(--ink);
+}
+
+.ed-detail-nav-link.next {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.ed-detail-nav-link .txt {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ed-detail-nav-link .dir {
+  font-family: var(--font-mono);
+  color: var(--ink-muted);
+  flex: none;
 }
 
 /* ── 最近浏览药丸 ──────────────────────────────────────────────── */
@@ -1521,17 +1569,13 @@ a.ed-link {
   --white: #ffffff;
 }
 
-.ed-vert-actions {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  margin-top: 16px;
-  flex-wrap: wrap;
+.ed-vert-attribution-row {
+  margin-top: 14px;
 }
 
 .ed-vert-attribution {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-muted);
   text-decoration: none;
 }

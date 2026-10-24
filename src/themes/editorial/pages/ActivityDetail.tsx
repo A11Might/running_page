@@ -183,6 +183,8 @@ export function ActivityDetail({
   );
   /** 全页面统一的播放头：0..1 的会话进度，驱动心率图/高程剖面/3D/路线海报 */
   const [scrubFrac, setScrubFrac] = useState<number | null>(null);
+  /** vert 地形昼夜主题（按钮与 Vert 按钮并排，对齐参考站） */
+  const [night, setNight] = useState(true);
   const scene = useVertScene(runId);
 
   useEffect(() => {
@@ -376,11 +378,47 @@ export function ActivityDetail({
           {hasRoute && scene && scene !== 'missing' && (
             <div className="ed-detail-actions">
               <a className="ed-btn" href="#vert-terrain">
-                Vert ↗
+                在 Vert 中打开 ↗
               </a>
-              <span className="hint">3D 地形就在下面 · 高程剖面可以拖动。</span>
+              <button
+                className="ed-btn ed-btn--outline"
+                onClick={() => setNight((v) => !v)}
+                aria-pressed={!night}
+              >
+                {night ? '日间模式' : '夜间模式'}
+              </button>
             </div>
           )}
+
+          {/* 前后导航（参考站：紧接统计格之后的右栏内） */}
+          <nav className="ed-detail-nav" aria-label="按日期浏览">
+            {prev ? (
+              <button
+                className="ed-detail-nav-link"
+                onClick={() => navigate(`a/${prev.run_id}`)}
+              >
+                <span className="dir">←</span>
+                <span className="txt">
+                  上一篇 · {localDate(prev).toLocaleDateString('zh-CN')} ·{' '}
+                  {prev.name || SPORTS[sportOf(prev)].zh}
+                </span>
+              </button>
+            ) : (
+              <span />
+            )}
+            {next && (
+              <button
+                className="ed-detail-nav-link next"
+                onClick={() => navigate(`a/${next.run_id}`)}
+              >
+                <span className="txt">
+                  下一篇 · {localDate(next).toLocaleDateString('zh-CN')} ·{' '}
+                  {next.name || SPORTS[sportOf(next)].zh}
+                </span>
+                <span className="dir">→</span>
+              </button>
+            )}
+          </nav>
         </div>
       </div>
 
@@ -402,10 +440,12 @@ export function ActivityDetail({
         ) : (
           <>
             <div className="ed-section-head">
-              <h2 className="ed-section-title" style={{ fontSize: 24 }}>
+              <h2 className="ed-section-title" style={{ fontSize: 22 }}>
                 地形
               </h2>
-              <span className="ed-section-note">拖动旋转 · 滚轮缩放</span>
+              <span className="ed-section-note">
+                Vert · 拖动旋转 · 拖动剖面回放
+              </span>
             </div>
             <Suspense
               fallback={
@@ -418,6 +458,7 @@ export function ActivityDetail({
                 <VertScene
                   activity={activity}
                   scene={scene}
+                  night={night}
                   scrub={
                     scrubFrac != null && activity.distance > 0
                       ? scrubFrac * activity.distance
@@ -493,46 +534,6 @@ export function ActivityDetail({
         current={activity}
         navigate={navigate}
       />
-
-      {/* 相邻活动 */}
-      <div className="ed-neighbors">
-        {prev ? (
-          <button
-            className="ed-neighbor"
-            style={{
-              background: 'none',
-              border: '1px solid #26272b',
-              cursor: 'pointer',
-              color: 'inherit',
-              font: 'inherit',
-            }}
-            onClick={() => navigate(`a/${prev.run_id}`)}
-          >
-            <span className="dir">←</span>
-            {localDate(prev).toLocaleDateString('zh-CN')} ·{' '}
-            {prev.name || SPORTS[sportOf(prev)].zh}
-          </button>
-        ) : (
-          <span />
-        )}
-        {next && (
-          <button
-            className="ed-neighbor next"
-            style={{
-              background: 'none',
-              border: '1px solid #26272b',
-              cursor: 'pointer',
-              color: 'inherit',
-              font: 'inherit',
-            }}
-            onClick={() => navigate(`a/${next.run_id}`)}
-          >
-            {localDate(next).toLocaleDateString('zh-CN')} ·{' '}
-            {next.name || SPORTS[sportOf(next)].zh}
-            <span className="dir">→</span>
-          </button>
-        )}
-      </div>
     </>
   );
 }

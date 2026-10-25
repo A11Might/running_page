@@ -13,7 +13,14 @@ import {
   type SportKey,
 } from '../lib/data';
 import { YearToDateChart } from '../components/charts';
-import { Delta, PillLink, SiteFooter, SportMixBar, StatStrip, StatTile } from '../components/sections';
+import {
+  Delta,
+  PillLink,
+  SiteFooter,
+  SportMixBar,
+  StatStrip,
+  StatTile,
+} from '../components/sections';
 
 /** 运动固定顺序（参考站常量表顺序） */
 const SPORT_ORDER: SportKey[] = [
@@ -54,10 +61,9 @@ export function Years({
   activities: Activity[];
   navigate: (path: string) => void;
 }) {
-  const years = useMemo(
-    () => availableYears(activities).slice().sort((a, b) => a - b),
-    [activities]
-  );
+  const years = useMemo(() => availableYears(activities), [activities]);
+  // 柱状图与矩阵的年份列保持升序（参考站 '20→'26），tab 与构成行保持降序
+  const yearsAsc = useMemo(() => [...years].reverse(), [years]);
   const thisYear = new Date().getFullYear();
   const [focus, setFocus] = useState<number>(
     years.includes(thisYear) ? thisYear : years[years.length - 1]
@@ -73,10 +79,7 @@ export function Years({
   const perYearTotals = useMemo(() => {
     const m = new Map<number, Totals>();
     for (const y of years) {
-      m.set(
-        y,
-        totalsOf(activities.filter((a) => activityYear(a) === y))
-      );
+      m.set(y, totalsOf(activities.filter((a) => activityYear(a) === y)));
     }
     return m;
   }, [activities, years]);
@@ -115,29 +118,39 @@ export function Years({
     return best ? { sport: best, hours: tally.get(best)! } : null;
   }, [activities, focus]);
 
-  // 年初至今：每年截至今天的累计小时（做副标题行）
-  const ytdLine = useMemo(() => {
-    const now = new Date();
-    const parts = years.map((y) => {
-      const upto =
-        y === thisYear
-          ? activities.filter((a) => {
-              const d = localDate(a);
-              return (
-                d.getFullYear() === y &&
-                (d.getMonth() < now.getMonth() ||
-                  (d.getMonth() === now.getMonth() && d.getDate() <= now.getDate()))
-              );
-            })
-          : activities.filter((a) => activityYear(a) === y);
-      const h = Math.round(
-        upto.reduce((s, a) => s + activitySeconds(a) / 3600, 0)
-      );
-      return `${y} ${h} h`;
-    });
-    const md = `${now.getMonth() + 1} 月 ${now.getDate()} 日`;
-    return `截至 ${md} — ${parts.join(' · ')}`;
-  }, [activities, years, thisYear]);
+  // 聚焦年份里时长最长的一次活动（LONGEST SESSION）
+  const longestSession = useMemo(() => {
+    return focusActs.reduce<Activity | null>(
+      (best, a) =>
+        !best || activitySeconds(a) > activitySeconds(best) ? a : best,
+      null
+    );
+  }, [focusActs]);
+
+  // 聚焦年份里小时最多的月份（BUSIEST MONTH）
+  const busiestMonth = useMemo(() => {
+    const tally = new Map<number, number>();
+    for (const a of focusActs) {
+      const m = localDate(a).getMonth();
+      tally.set(m, (tally.get(m) ?? 0) + activitySeconds(a) / 3600);
+    }
+    let best: { month: number; hours: number } | null = null;
+    for (const [month, hours] of tally) {
+      if (!best || hours > best.hours) best = { month, hours };
+    }
+    return best;
+  }, [focusActs]);
+
+  const fmtClock = (seconds: number): string => {
+    const total = Math.round(seconds);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    return h > 0
+      ? `${h}:${String(m).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+      : `${m}:${String(total % 60).padStart(2, '0')}`;
+  };
+
+  // 年初至今：图表组件自带可交互 readout（悬停更新），页头只放静态说明
 
   // 每年 × 每运动 的小时矩阵 + 各年合计 + 各运动最大值
   const matrix = useMemo(() => {
@@ -196,9 +209,7 @@ export function Years({
       .filter((r) => r.total > 0);
   }, [activities, years, matrix.sports]);
 
-  const [shareReadout, setShareReadout] = useState<string>(
-    '悬停色块查看构成'
-  );
+  const [shareReadout, setShareReadout] = useState<string>('悬停色块查看构成');
   const compareNote =
     focus === thisYear
       ? `对比 ${focus - 1} 年同期（1 月 1 日 – ${new Date().getMonth() + 1} 月 ${new Date().getDate()} 日）`
@@ -238,7 +249,10 @@ export function Years({
             { label: '活跃天', value: formatInt(allTotals.activeDays) },
             { label: '公里', value: formatInt(allTotals.km) },
             { label: '爬升 m', value: formatInt(allTotals.climb) },
-            { label: '运动', value: matrix.sports.length },
+            {
+              label: '年份 · 运动',
+              value: `${years.length} · ${matrix.sports.length}`,
+            },
           ]}
         />
       </section>
@@ -282,11 +296,53 @@ export function Years({
                     <span>
                       {Math.round(mainSport.hours)} h ·{' '}
                       {focusTotals.hours
-                        ? Math.round((mainSport.hours / focusTotals.hours) * 100)
+                        ? Math.round(
+                            (mainSport.hours / focusTotals.hours) * 100
+                          )
                         : 0}
                       % 的时间
                     </span>
                   }
+                />
+              )}
+              {longestSession && (
+                <StatTile
+                  label="最长一次"
+                  value={
+                    <span className="sport-value">
+                      <span
+                        className="ed-dot"
+                        style={{
+                          background: sportColor(sportOf(longestSession)),
+                        }}
+                      />
+                      <span
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {longestSession.name ||
+                          SPORTS[sportOf(longestSession)].zh}
+                      </span>
+                    </span>
+                  }
+                  delta={
+                    <span>
+                      {fmtClock(activitySeconds(longestSession))} ·{' '}
+                      {localDate(longestSession).getMonth() + 1} 月{' '}
+                      {localDate(longestSession).getDate()} 日 ·{' '}
+                      {SPORTS[sportOf(longestSession)].zh}
+                    </span>
+                  }
+                />
+              )}
+              {busiestMonth && (
+                <StatTile
+                  label="最忙月份"
+                  value={`${busiestMonth.month + 1} 月`}
+                  delta={<span>{Math.round(busiestMonth.hours)} h</span>}
                 />
               )}
             </dl>
@@ -305,7 +361,7 @@ export function Years({
         <div className="ed-chart-card">
           <div className="ed-card-head">
             <h2 className="ed-h2">年初至今</h2>
-            <p className="ed-sub">{ytdLine}</p>
+            <p className="ed-sub">自 1 月 1 日起的累计小时 · 聚焦年份为白色</p>
           </div>
           <YearToDateChart activities={activities} focusYear={focus} />
         </div>
@@ -319,7 +375,7 @@ export function Years({
         </div>
         <ul className="ed-yoy-grid">
           {METRICS.map((m) => {
-            const values = years.map((y) => ({
+            const values = yearsAsc.map((y) => ({
               year: y,
               value: m.fmt(perYearTotals.get(y) ?? totalsOf([])),
             }));
@@ -333,7 +389,11 @@ export function Years({
                     {hi ? formatInt(hi.value) : 0} in {focus}
                   </span>
                 </div>
-                <div className="bars" role="toolbar" aria-label={`${m.label}按年`}>
+                <div
+                  className="bars"
+                  role="toolbar"
+                  aria-label={`${m.label}按年`}
+                >
                   {values.map((v) => (
                     <button
                       key={v.year}
@@ -371,7 +431,10 @@ export function Years({
             <ul className="legend">
               {matrix.sports.map((s) => (
                 <li key={s}>
-                  <span className="ed-dot" style={{ background: sportColor(s) }} />
+                  <span
+                    className="ed-dot"
+                    style={{ background: sportColor(s) }}
+                  />
                   {SPORTS[s].zh}
                 </li>
               ))}
@@ -443,7 +506,7 @@ export function Years({
                   <th scope="col" className="corner">
                     运动
                   </th>
-                  {years.map((y) => (
+                  {yearsAsc.map((y) => (
                     <th
                       scope="col"
                       key={y}
@@ -468,10 +531,13 @@ export function Years({
                 {matrix.sports.map((s) => (
                   <tr key={s}>
                     <th scope="row" className="sport-label">
-                      <span className="ed-dot" style={{ background: sportColor(s) }} />
+                      <span
+                        className="ed-dot"
+                        style={{ background: sportColor(s) }}
+                      />
                       {SPORTS[s].zh}
                     </th>
-                    {years.map((y) => {
+                    {yearsAsc.map((y) => {
                       const h = matrix.cell.get(`${s}|${y}`) ?? 0;
                       const d = 46 * Math.sqrt(h / matrix.maxCell);
                       return (

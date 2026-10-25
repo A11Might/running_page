@@ -127,6 +127,12 @@ export function VertScene({
         >
           重置
         </button>
+        <div className="ed-vert-marks" aria-hidden>
+          <span>○ 起点</span>
+          <span>◎ 终点</span>
+          <span>▲ 最高点</span>
+          <span>● 回放</span>
+        </div>
       </div>
       <div style={{ marginTop: 18 }}>
         <ElevationProfile

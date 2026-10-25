@@ -86,6 +86,37 @@ export function Records({
     return { longestRun, mostClimb, longestSession };
   }, [activities]);
 
+  // 每个非跑步运动的最长一次（对齐参考站 LONGEST TENNIS / CLIMB / SWIM）：
+  // 按小时排序取前 3，跳过与上面三张卡重复的活动
+  const sportLongest = useMemo(() => {
+    if (!activities.length) return [];
+    const usedIds = new Set(
+      [biggest?.longestRun, biggest?.mostClimb, biggest?.longestSession]
+        .filter((a): a is Activity => !!a)
+        .map((a) => a.run_id)
+    );
+    return bySport(activities)
+      .filter((s) => s.sport !== 'run')
+      .sort((a, b) => b.hours - a.hours)
+      .map(({ sport }) => ({
+        sport,
+        activity: activities
+          .filter((a) => sportOf(a) === sport)
+          .reduce<Activity | null>(
+            (best, a) =>
+              !best || activitySeconds(a) > activitySeconds(best) ? a : best,
+            null
+          ),
+      }))
+      .filter(
+        (x): x is { sport: ReturnType<typeof sportOf>; activity: Activity } =>
+          !!x.activity &&
+          activitySeconds(x.activity) >= 600 &&
+          !usedIds.has(x.activity.run_id)
+      )
+      .slice(0, 3);
+  }, [activities, biggest]);
+
   const sportTable = useMemo(() => {
     const order = bySport(activities);
     const ranges = new Map<string, [number, number]>();
@@ -152,9 +183,14 @@ export function Records({
           tiles={[
             {
               label: '始于',
-              value: earliest
-                ? `${localDate(earliest).getFullYear()} 年 ${localDate(earliest).getMonth() + 1} 月`
-                : '—',
+              value: earliest ? (
+                <span className="ed-stat-date">
+                  {localDate(earliest).getFullYear()} 年{' '}
+                  {localDate(earliest).getMonth() + 1} 月
+                </span>
+              ) : (
+                '—'
+              ),
             },
             { label: '次数', value: formatInt(totals.sessions) },
             { label: '公里', value: formatInt(totals.km) },
@@ -251,6 +287,15 @@ export function Records({
               onOpen={() => openDay(biggest.longestSession!)}
             />
           )}
+          {sportLongest.map(({ sport, activity }) => (
+            <BigDayCard
+              key={sport}
+              label={`最长的一次${SPORTS[sport].zh}`}
+              value={fmtDuration(activitySeconds(activity))}
+              activity={activity}
+              onOpen={() => openDay(activity)}
+            />
+          ))}
         </div>
       </section>
 

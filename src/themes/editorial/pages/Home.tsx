@@ -17,7 +17,13 @@ import {
 } from '../lib/data';
 import { sortedByDate } from '../lib/track';
 import { SessionGlyph } from '../components/SessionTile';
-import { Delta, PillLink, SiteFooter, SportMixBar, StatTile } from '../components/sections';
+import {
+  Delta,
+  PillLink,
+  SiteFooter,
+  SportMixBar,
+  StatTile,
+} from '../components/sections';
 
 const zhDate = (d: Date) =>
   `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日`;
@@ -148,40 +154,47 @@ export function Home({
                 {new Date().getMonth() + 1} 月 {new Date().getDate()} 日）
               </span>
             </div>
-            <dl className="focus-facts">
-              <StatTile
-                label="小时"
-                value={Math.round(thisTotals.hours)}
-                delta={<Delta now={thisTotals.hours} before={lastTotals.hours} />}
-              />
-              <StatTile
-                label="次数"
-                value={thisTotals.sessions}
-                delta={
-                  <Delta now={thisTotals.sessions} before={lastTotals.sessions} />
-                }
-              />
-              <StatTile
-                label="活跃天"
-                value={thisTotals.activeDays}
-                delta={
-                  <Delta
-                    now={thisTotals.activeDays}
-                    before={lastTotals.activeDays}
-                  />
-                }
-              />
-              <StatTile
-                label="运动"
-                value={new Set(thisPeriod.map((a) => sportOf(a))).size}
-                delta={
-                  <Delta
-                    now={new Set(thisPeriod.map((a) => sportOf(a))).size}
-                    before={lastSportCount}
-                  />
-                }
-              />
-            </dl>
+            <div className="focus-body">
+              <dl className="focus-facts">
+                <StatTile
+                  label="小时"
+                  value={Math.round(thisTotals.hours)}
+                  delta={
+                    <Delta now={thisTotals.hours} before={lastTotals.hours} />
+                  }
+                />
+                <StatTile
+                  label="次数"
+                  value={thisTotals.sessions}
+                  delta={
+                    <Delta
+                      now={thisTotals.sessions}
+                      before={lastTotals.sessions}
+                    />
+                  }
+                />
+                <StatTile
+                  label="活跃天"
+                  value={thisTotals.activeDays}
+                  delta={
+                    <Delta
+                      now={thisTotals.activeDays}
+                      before={lastTotals.activeDays}
+                    />
+                  }
+                />
+                <StatTile
+                  label="运动"
+                  value={new Set(thisPeriod.map((a) => sportOf(a))).size}
+                  delta={
+                    <Delta
+                      now={new Set(thisPeriod.map((a) => sportOf(a))).size}
+                      before={lastSportCount}
+                    />
+                  }
+                />
+              </dl>
+            </div>
             <div className="mix-row">
               <SportMixBar activities={thisPeriod} />
               <PillLink onClick={() => navigate('years')}>对比历年 →</PillLink>
@@ -344,7 +357,11 @@ export function Home({
         <div className="ed-glyph-legend">
           {/* 图例图标直接取自参考站原版 SVG（28×28，muted 灰，起点点用主墨色） */}
           <div className="row">
-            <svg className="glyph-example" viewBox="0 0 28 28" aria-hidden="true">
+            <svg
+              className="glyph-example"
+              viewBox="0 0 28 28"
+              aria-hidden="true"
+            >
               <path
                 d="M5 21C8 12 11 9 14 12C17 15 19 18 23 7"
                 fill="none"
@@ -361,7 +378,11 @@ export function Home({
             </span>
           </div>
           <div className="row">
-            <svg className="glyph-example" viewBox="0 0 28 28" aria-hidden="true">
+            <svg
+              className="glyph-example"
+              viewBox="0 0 28 28"
+              aria-hidden="true"
+            >
               <circle
                 cx="14"
                 cy="14"

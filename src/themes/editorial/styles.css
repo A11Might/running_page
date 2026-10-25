@@ -127,6 +127,8 @@ a.ed-link {
   white-space: nowrap;
   padding-bottom: 4px;
   border-bottom: 2px solid transparent;
+  /* 参考站导航：非激活项无下划线 */
+  text-decoration: none;
   transition: color 0.12s ease;
 }
 
@@ -447,6 +449,7 @@ a.ed-link {
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 700;
+  text-decoration: none;
   cursor: pointer;
   transition:
     opacity 0.12s ease,
@@ -711,16 +714,21 @@ a.ed-link {
 
 .ed-tile .date {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  /* 字号随图块缩放：84px→10.5px，56px→8.5px，避免小图块时标签互相重叠 */
+  font-size: clamp(8px, calc(var(--tile, 84px) * 0.125), 10.5px);
   letter-spacing: 0.06em;
   color: var(--ink-muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── Latest 卡片 ───────────────────────────────────────────────── */
 
 .ed-latest-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(256px, 1fr));
   gap: 14px;
 }
 
@@ -823,6 +831,26 @@ a.ed-link {
   font-family: var(--font-mono);
 }
 
+/* 散点图图例行（参考站：● 2026 ● Other years ---- Typical run in focus） */
+.ed-scatter-legend {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 10px 0 2px;
+  font-size: 12.5px;
+  color: var(--ink-secondary);
+}
+.ed-scatter-legend .dot {
+  margin-right: 6px;
+}
+.ed-scatter-legend .dash {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.08em;
+}
+
 /* ── 我还在出现吗（逐年出勤表）────────────────────────────────── */
 
 .ed-showup-table {
@@ -833,7 +861,7 @@ a.ed-link {
 .ed-showup-head,
 .ed-showup-row {
   display: grid;
-  grid-template-columns: 76px 1fr 130px 120px 90px 90px;
+  grid-template-columns: 76px minmax(0, 1fr) 110px 84px 96px;
   gap: 18px;
   align-items: center;
   padding: 12px 14px;
@@ -869,8 +897,17 @@ a.ed-link {
   font-size: 14.5px;
 }
 
+/* 条形 + 天数同列：天数右对齐贴在列尾（对齐参考站 "108 / 285"） */
+.ed-showup-barcell {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
 .ed-showup-bar {
   display: block;
+  flex: 1 1 auto;
   height: 10px;
   border-radius: 2px;
   background: var(--empty-cell);
@@ -899,9 +936,13 @@ a.ed-link {
 @media (max-width: 760px) {
   .ed-showup-head,
   .ed-showup-row {
-    grid-template-columns: 56px 1fr 92px 78px 66px 66px;
+    grid-template-columns: 52px minmax(0, 1fr) 86px 64px 64px;
     gap: 10px;
     padding: 10px 8px;
+  }
+
+  .ed-showup-barcell {
+    gap: 10px;
   }
 }
 
@@ -1023,24 +1064,66 @@ a.ed-link {
   font-weight: 600;
 }
 
-/* ── 日历热力图 ────────────────────────────────────────────────── */
+/* ── 日历热力图（满宽自适应：53 列 1fr，方格随卡片宽度伸缩）────── */
 
 .ed-heatmap-wrap {
   overflow-x: auto;
   padding-bottom: 6px;
 }
 
+/* 网格框架：左列星期标签（auto），右侧月份行 + 热力图（1fr）同列对齐 */
+.ed-heat-frame {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 6px;
+  min-width: 620px;
+}
+
+.ed-heatmap-months {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--weeks, 53), minmax(0, 1fr));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-muted);
+}
+
+.ed-heatmap-months span {
+  white-space: nowrap;
+}
+
+.ed-heat-days {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  gap: var(--tile-gap);
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--ink-faint);
+}
+
+.ed-heat-days span {
+  line-height: 1;
+}
+
 .ed-heatmap {
+  grid-column: 2;
+  grid-row: 2;
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(7, 13px);
+  grid-template-rows: repeat(7, auto);
+  grid-template-columns: repeat(var(--weeks, 53), minmax(0, 1fr));
   gap: var(--tile-gap);
-  width: max-content;
+  width: 100%;
 }
 
 .ed-heatmap .cell {
-  width: 13px;
-  height: 13px;
+  width: 100%;
+  aspect-ratio: 1;
+  height: auto;
   border-radius: 2px;
   background: var(--empty-cell);
   cursor: pointer;
@@ -1054,14 +1137,6 @@ a.ed-link {
 
 .ed-heatmap .cell.is-selected {
   outline: 1.5px solid var(--ink);
-}
-
-.ed-heatmap-months {
-  display: grid;
-  width: max-content;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--ink-muted);
 }
 
 .ed-day-panel {
@@ -1098,6 +1173,12 @@ a.ed-link {
 .ed-day-session .meta {
   font-family: var(--font-mono);
   font-size: 11.5px;
+  color: var(--ink-muted);
+}
+
+.ed-day-session .dir {
+  font-family: var(--font-mono);
+  font-size: 12px;
   color: var(--ink-muted);
 }
 
@@ -1230,33 +1311,38 @@ a.ed-link {
   color: var(--ink-muted);
 }
 
-/* ── 前后导航（右栏内，两个半宽链接并排，对齐参考站）────────────── */
+/* ── 前后导航（右栏内，两张边框胶囊卡并排，对齐参考站）────────────── */
 
 .ed-detail-nav {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  margin-top: 26px;
+  margin-top: 30px;
 }
 
 .ed-detail-nav-link {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--ink-secondary);
-  font-size: 14px;
+  min-height: 52px;
+  padding: 12px 20px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--ground);
+  color: var(--ink);
+  font-size: 14.5px;
   font-weight: 600;
   cursor: pointer;
   text-align: left;
-  transition: color 0.12s ease;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
 }
 
 .ed-detail-nav-link:hover {
-  color: var(--ink);
+  border-color: var(--edge-strong);
+  background: var(--raised);
 }
 
 .ed-detail-nav-link.next {
@@ -1308,21 +1394,22 @@ a.ed-link {
   border-color: var(--edge-strong);
 }
 
-/* ── 相似活动卡（横向：图形左 / 文字右，对齐参考站）──────────────── */
+/* ── 相似活动卡（竖版：图形上 / 文字下，对齐参考站 More like this）── */
 
 .ed-similar-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 14px;
 }
 
 .ed-similar-card {
   display: flex;
-  align-items: center;
-  gap: 18px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
-  padding: 14px 18px;
+  padding: 18px 18px 16px;
   background: none;
   text-align: left;
   cursor: pointer;
@@ -1335,14 +1422,19 @@ a.ed-link {
 }
 
 .ed-similar-card .ed-similar-glyph {
-  flex: 0 0 108px;
+  flex: 0 0 auto;
+  align-self: center;
+  width: 150px;
+  height: 150px;
+  margin: 6px 0 16px;
   display: flex;
+  align-items: center;
   justify-content: center;
 }
 
 .ed-similar-card .ed-similar-glyph svg {
-  width: 108px;
-  height: 108px;
+  width: 100%;
+  height: 100%;
 }
 
 .ed-similar-card .ed-similar-text {
@@ -1549,8 +1641,10 @@ a.ed-link {
 .ed-vert-marks {
   margin-left: auto;
   display: flex;
-  gap: 18px;
+  flex-wrap: wrap;
+  gap: 8px 18px;
   align-items: center;
+  justify-content: flex-end;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ink-muted);
@@ -1878,10 +1972,11 @@ a.ed-link {
   letter-spacing: -0.02em;
 }
 .ed-stat-tile .delta {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink-secondary);
-  letter-spacing: 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  letter-spacing: 0.02em;
 }
 .ed-stat-tile .sport-value {
   display: inline-flex;
@@ -2387,7 +2482,6 @@ table.ed-matrix {
   color: var(--ink);
 }
 
-
 /* ══════════ 反馈修复批次（参考站实测规格）══════════ */
 
 /* ── 页头：H1 + 下划线年份 tab（参考站 tabs）──────────────────── */
@@ -2429,16 +2523,42 @@ table.ed-matrix {
   color: var(--ink);
 }
 
-/* ── 响应式统计条（一行 N 格，窄屏自动换行）──────────────────── */
+/* ── 响应式统计条（参考站 _strip：外框 + 深色格子由 2px 缝隙分隔）── */
 
 .ed-stat-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(var(--stat-min, 170px), 1fr));
   gap: 2px;
   margin: 26px 0 0;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--hairline);
+  overflow: hidden;
+}
+.ed-stat-strip .ed-stat-tile {
+  border-top: 0;
+  padding: 18px 20px 16px;
+  background: var(--ground);
 }
 .ed-stat-strip .ed-stat-tile dd {
   font-size: var(--stat-fig, 40px);
+  white-space: nowrap;
+}
+/* delta 是小字注释：覆盖上面 var(--stat-fig) 的大字号 */
+.ed-stat-strip .ed-stat-tile dd.delta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink-muted);
+  white-space: normal;
+  line-height: 1.6;
+}
+/* 长文本值（如「2023 年 2 月」）：字号自适应缩放，不撑破格子 */
+.ed-stat-strip .ed-stat-tile dd .ed-stat-date {
+  font-size: clamp(22px, 2.2vw, 30px);
+  letter-spacing: -0.01em;
 }
 
 /* ── 聚焦卡补充：按运动小时条 + 胶囊链接（参考站 1qwcl + pill）── */

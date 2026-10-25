@@ -65,6 +65,22 @@ export function Progress({ activities }: { activities: Activity[] }) {
     return hours / months;
   }, [activities, focus, thisYear]);
 
+  // 再往前一个 12 个月窗口的月均（做 "vs 前一年" 对比，对齐参考站）
+  const avg12Prev = useMemo(() => {
+    const endCutoff = new Date(
+      focus === thisYear ? thisYear - 1 : focus - 1,
+      new Date().getMonth(),
+      1
+    );
+    const startCutoff = new Date(endCutoff);
+    startCutoff.setFullYear(endCutoff.getFullYear() - 1);
+    const prev12 = activities.filter((a) => {
+      const d = localDate(a);
+      return d >= startCutoff && d < endCutoff;
+    });
+    return prev12.reduce((s, a) => s + activitySeconds(a) / 3600, 0) / 12;
+  }, [activities, focus, thisYear]);
+
   // 有记录的周数
   const weeksInfo = useMemo(() => {
     const weeks = new Set<string>();
@@ -216,6 +232,7 @@ export function Progress({ activities }: { activities: Activity[] }) {
             {
               label: '12 个月平均',
               value: `${avg12.toFixed(1)} h/月`,
+              delta: avg12Prev > 0 ? delta(avg12, avg12Prev) : 'new',
             },
           ]}
         />
@@ -289,15 +306,17 @@ export function Progress({ activities }: { activities: Activity[] }) {
                     aria-pressed={isFocus}
                   >
                     <span className="ed-showup-year">{year}</span>
-                    <span className="ed-showup-bar">
-                      <i
-                        style={{
-                          width: `${(activeDays / daysInYear) * 100}%`,
-                        }}
-                      />
-                    </span>
-                    <span className="ed-showup-num">
-                      {activeDays} / {daysInYear}
+                    <span className="ed-showup-barcell">
+                      <span className="ed-showup-bar">
+                        <i
+                          style={{
+                            width: `${(activeDays / daysInYear) * 100}%`,
+                          }}
+                        />
+                      </span>
+                      <span className="ed-showup-num">
+                        {activeDays} / {daysInYear}
+                      </span>
                     </span>
                     <span className="ed-showup-num">
                       {weeksOn} / {weeksTotal}
@@ -322,10 +341,10 @@ export function Progress({ activities }: { activities: Activity[] }) {
             </p>
           </div>
           <PaceScatterChart activities={activities} focusYear={focus} />
-          <p className="ed-chart-sub" style={{ marginTop: 16 }}>
-            力量、攀岩这类运动没有配速信号，所以它们只计入上面的问题。诚实胜过取巧。
-          </p>
         </div>
+        <p className="ed-chart-sub" style={{ marginTop: 16 }}>
+          力量、攀岩这类运动没有配速信号，所以它们只计入上面的问题。诚实胜过取巧。
+        </p>
       </section>
 
       <SiteFooter />

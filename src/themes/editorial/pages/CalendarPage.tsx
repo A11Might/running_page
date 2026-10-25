@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Activity } from '@/types';
 import {
   activityKm,
@@ -25,7 +25,24 @@ interface DayCell {
   hours: number;
 }
 
-const WEEKDAY_LABELS = ['一', '三', '五', '日'];
+const WEEKDAY_ROWS = ['一', '', '三', '', '五', '', '日'];
+const ZH_WEEKDAY = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+/** 日期格提示（对齐参考站 "Mon 26 Jan · Strength 25 min, Run 23 min"） */
+function dayLabel(cell: DayCell): string {
+  const d = new Date(cell.dateKey + 'T00:00:00');
+  const base = `${ZH_WEEKDAY[d.getDay()]} ${d.getMonth() + 1} 月 ${d.getDate()} 日`;
+  if (!cell.activities.length) return `${base} · 休息`;
+  const mins = new Map<SportKey, number>();
+  for (const a of cell.activities) {
+    const s = sportOf(a);
+    mins.set(s, (mins.get(s) ?? 0) + activitySeconds(a) / 60);
+  }
+  const parts = [...mins.entries()].map(
+    ([s, m]) => `${SPORTS[s].zh} ${Math.round(m)} 分钟`
+  );
+  return `${base} · ${parts.join('，')}`;
+}
 
 function mondayOf(d: Date): Date {
   const m = new Date(d);
@@ -145,6 +162,13 @@ export function CalendarPage({
     : null;
   const selectedDate = selected ? new Date(selected + 'T00:00:00') : null;
 
+  // 窄屏热力图横向滚动时，默认停在最右（最新月份），对齐参考站
+  const heatWrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = heatWrapRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [year]);
+
   const stepDay = (dir: -1 | 1) => {
     if (!selected) return;
     const d = new Date(selected + 'T00:00:00');
@@ -204,79 +228,50 @@ export function CalendarPage({
             <span className="ed-section-note">悬停查看 · 点击选中某天</span>
           </div>
 
-          <div className="ed-heatmap-wrap">
-            <div style={{ position: 'relative' }}>
-              <div
-                className="ed-heatmap-months"
-                style={{
-                  gridTemplateColumns: `repeat(${weeks.length}, 15px)`,
-                  marginBottom: 6,
-                }}
-              >
+          <div className="ed-heatmap-wrap" ref={heatWrapRef}>
+            <div
+              className="ed-heat-frame"
+              style={{ ['--weeks' as string]: String(weeks.length) }}
+            >
+              <div aria-hidden />
+              <div className="ed-heatmap-months">
                 {weeks.map((_, i) => {
                   const mark = monthMarks.find((m) => m.col === i);
                   return (
-                    <span
-                      key={i}
-                      style={{ gridColumn: i + 1, whiteSpace: 'nowrap' }}
-                    >
+                    <span key={i} style={{ gridColumn: i + 1 }}>
                       {mark ? `${mark.month + 1}月` : ''}
                     </span>
                   );
                 })}
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateRows: 'repeat(7, 13px)',
-                    gap: 2,
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 9.5,
-                    color: '#55565c',
-                  }}
-                  aria-hidden
-                >
-                  {WEEKDAY_LABELS.map((l, i) => (
-                    <span
-                      key={l}
-                      style={{ gridRow: i * 2 + 1, lineHeight: '13px' }}
-                    >
-                      {l}
-                    </span>
-                  ))}
-                </div>
-                <div className="ed-heatmap">
-                  {weeks.flatMap((col) =>
-                    col.map((cell) => {
-                      const title = cell.activities.length
-                        ? `${cell.dateKey} · ${cell.activities.length} 次 · ${cell.hours.toFixed(1)} h\n${cell.activities
-                            .map(
-                              (a) =>
-                                `· ${a.name || SPORTS[sportOf(a)].zh} ${activityKm(a.distance).toFixed(1)}km`
-                            )
-                            .join('\n')}`
-                        : cell.dateKey;
-                      return (
-                        <button
-                          key={cell.dateKey}
-                          className={`cell ${selected === cell.dateKey ? 'is-selected' : ''}`}
-                          style={{
-                            background: cell.sport
-                              ? sportColor(cell.sport)
-                              : undefined,
-                            opacity: cell.sport
-                              ? 0.28 + 0.72 * Math.min(cell.hours / 2, 1)
-                              : 1,
-                          }}
-                          title={title}
-                          onClick={() => setSelected(cell.dateKey)}
-                          aria-label={title}
-                        />
-                      );
-                    })
-                  )}
-                </div>
+              <div className="ed-heat-days" aria-hidden>
+                {WEEKDAY_ROWS.map((l, i) => (
+                  <span key={i}>{l}</span>
+                ))}
+              </div>
+              <div className="ed-heatmap">
+                {weeks.flatMap((col) =>
+                  col.map((cell) => {
+                    const label = dayLabel(cell);
+                    return (
+                      <button
+                        key={cell.dateKey}
+                        className={`cell ${selected === cell.dateKey ? 'is-selected' : ''}`}
+                        style={{
+                          background: cell.sport
+                            ? sportColor(cell.sport)
+                            : undefined,
+                          opacity: cell.sport
+                            ? 0.28 + 0.72 * Math.min(cell.hours / 2, 1)
+                            : 1,
+                        }}
+                        title={label}
+                        onClick={() => setSelected(cell.dateKey)}
+                        aria-label={label}
+                      />
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -343,6 +338,9 @@ export function CalendarPage({
                       {a.average_heartrate
                         ? ` · ${Math.round(a.average_heartrate)} bpm`
                         : ''}
+                    </span>
+                    <span className="dir" aria-hidden>
+                      →
                     </span>
                   </button>
                 ))
@@ -431,9 +429,7 @@ function WhenClock({
       by: new Map<SportKey, number>(),
     }));
     for (const a of activities) {
-      const h = new Date(
-        a.start_date_local.replace(' ', 'T')
-      ).getHours();
+      const h = new Date(a.start_date_local.replace(' ', 'T')).getHours();
       const slot = slots[h];
       slot.total += 1;
       const s = sportOf(a);
@@ -516,12 +512,12 @@ function WhenClock({
               strokeLinecap="butt"
             />
           )}
-          {/* 中心：峰值次数 + 小时 */}
+          {/* 中心：峰值小时 + 说明（对齐参考站 17:00 / PEAK HOUR） */}
           <text x={180} y={178} textAnchor="middle" className="peak-num">
-            {peak.total}
+            {String(peak.hour).padStart(2, '0')}:00
           </text>
           <text x={180} y={198} textAnchor="middle" className="peak-sub">
-            {String(peak.hour).padStart(2, '0')}:00 最忙
+            最忙小时
           </text>
         </svg>
         {hours.map((s) => {

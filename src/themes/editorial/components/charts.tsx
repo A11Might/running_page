@@ -141,19 +141,18 @@ export function YearToDateChart({
   const now = new Date();
   const todayDoy =
     Math.floor(
-      (now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) /
-        86400000
+      (now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000
     ) + 1;
   const yearLen = (y: number) =>
-    (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 366 : 365;
+    y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0) ? 366 : 365;
 
   const series = useMemo(
     () =>
       years.map((y) => {
         let pts = cumulativeSeries(activities, y);
-        // 进行中的年份：截到今天，不拖到年底
+        // 进行中的年份：截到今天（pts 下标 0 基，todayDoy 为 1 基），不拖到年底
         if (y === now.getFullYear()) {
-          pts = pts.slice(0, Math.min(todayDoy + 1, pts.length));
+          pts = pts.slice(0, Math.min(todayDoy, pts.length));
         }
         return { year: y, pts };
       }),
@@ -178,7 +177,8 @@ export function YearToDateChart({
   };
 
   const [cursorDay, setCursorDay] = useState<number | null>(null);
-  const activeDay = cursorDay ?? todayDoy;
+  // activeDay 为 0 基天序（pts 下标）：默认停在今天
+  const activeDay = cursorDay ?? todayDoy - 1;
   const activeLen = 366;
   const activeDate = new Date(now.getFullYear(), 0, Math.round(activeDay) + 1);
   const readout = `截至 ${activeDate.getMonth() + 1} 月 ${activeDate.getDate()} 日 — ${series
@@ -235,20 +235,10 @@ export function YearToDateChart({
               )
               .join('');
             return (
-              <path
-                key={year}
-                d={d}
-                className={focus ? 'focus' : 'others'}
-              />
+              <path key={year} d={d} className={focus ? 'focus' : 'others'} />
             );
           })}
-          <line
-            x1={cursorX}
-            x2={cursorX}
-            y1={0}
-            y2={H}
-            className="cursor"
-          />
+          <line x1={cursorX} x2={cursorX} y1={0} y2={H} className="cursor" />
         </svg>
         <span className="ed-ytd-ymax">{yMax} h</span>
         {(() => {
@@ -256,8 +246,7 @@ export function YearToDateChart({
           const sorted = series
             .slice()
             .sort(
-              (a, b) =>
-                b.pts[b.pts.length - 1][1] - a.pts[a.pts.length - 1][1]
+              (a, b) => b.pts[b.pts.length - 1][1] - a.pts[a.pts.length - 1][1]
             );
           let prevTop = -Infinity;
           return sorted.map(({ year, pts }) => {
@@ -315,6 +304,11 @@ export function MonthlyBarsChart({
 }) {
   const bars = useMemo(() => monthlyBars(activities), [activities]);
   const [hover, setHover] = useState<MonthBar | null>(null);
+  // 聚焦年份总小时（readout 默认态，对齐参考站 "2026 · 116 h"）
+  const focusHours = useMemo(
+    () => bars.reduce((s, b) => (b.year === focusYear ? s + b.hours : s), 0),
+    [bars, focusYear]
+  );
   const W = 1200;
   const H = 380;
   const PAD_L = 44;
@@ -440,7 +434,7 @@ export function MonthlyBarsChart({
       <div className="ed-chart-sub" style={{ minHeight: 18 }}>
         {hover
           ? `${hover.year}年${hover.month}月 · 共 ${hover.hours.toFixed(1)} 小时`
-          : `${focusYear} · 悬停查看某月`}
+          : `${focusYear} · ${focusHours.toFixed(0)} h · 悬停查看某月`}
       </div>
     </>
   );
@@ -519,6 +513,18 @@ export function PaceScatterChart({
 
   return (
     <>
+      {/* 图例行（对齐参考站：聚焦年 / 其他年份 / 典型值虚线） */}
+      <div className="ed-scatter-legend">
+        <span>
+          <span className="dot" style={{ background: sportColor('run') }} />
+          {focusYear}
+        </span>
+        <span>
+          <span className="dot" style={{ background: '#3a3b40' }} />
+          其他年份
+        </span>
+        <span className="dash">---- 典型值</span>
+      </div>
       <svg
         className="ed-chart-svg"
         viewBox={`0 0 ${W} ${H}`}
@@ -731,10 +737,11 @@ export function HrChart({
   const hi = Math.ceil((Math.max(...vals) + 6) / 10) * 10;
   const W = 1200;
   const H = 190;
-  const PAD_L = 56;
-  const PAD_R = 16;
-  const PAD_T = 14;
-  const PAD_B = 26;
+  // 参考站心率图：无内部刻度，开始/总时长由图下方的 ed-hr-axis 提供
+  const PAD_L = 10;
+  const PAD_R = 10;
+  const PAD_T = 12;
+  const PAD_B = 10;
   const n = series.length;
   const x = (i: number) => PAD_L + (i / (n - 1)) * (W - PAD_L - PAD_R);
   const y = (v: number) =>
@@ -774,23 +781,6 @@ export function HrChart({
         })()
       : null;
 
-  // X 轴：钟表时刻（参考站格式），从开跑时刻起算
-  const startClock = (() => {
-    const m = activity.start_date_local.match(
-      /(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/
-    );
-    if (!m) return null;
-    return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
-  })();
-  const clockAt = (f: number): string => {
-    if (!startClock) {
-      const total = Math.round((elapsedSeconds / 60) * f);
-      return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-    }
-    const d = new Date(startClock.getTime() + elapsedSeconds * 1000 * f);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  };
-
   const svgRef = useRef<SVGSVGElement>(null);
   const draggingRef = useRef(false);
 
@@ -800,10 +790,6 @@ export function HrChart({
     const vx = ((e.clientX - rect.left) / rect.width) * W;
     return Math.min(Math.max((vx - PAD_L) / (W - PAD_L - PAD_R), 0), 1);
   };
-
-  const gridTicks: number[] = [];
-  const tickStep = Math.max(Math.round((hi - lo) / 4 / 10) * 10, 10);
-  for (let v = lo + tickStep; v < hi; v += tickStep) gridTicks.push(v);
 
   return (
     <svg
@@ -844,27 +830,6 @@ export function HrChart({
           onScrubFraction(Math.min((scrubFraction ?? 0) + 0.01, 1));
       }}
     >
-      {/* 网格与 Y 轴 */}
-      {gridTicks.map((v) => (
-        <g key={v}>
-          <line
-            x1={PAD_L}
-            x2={W - PAD_R}
-            y1={y(v)}
-            y2={y(v)}
-            stroke="#1e1f23"
-          />
-          <text
-            x={PAD_L - 8}
-            y={y(v) + 3}
-            textAnchor="end"
-            fontSize={10}
-            fill="#55565c"
-          >
-            {v}
-          </text>
-        </g>
-      ))}
       <path d={area} fill={color} opacity={0.15} />
       <path
         d={line}
@@ -908,19 +873,6 @@ export function HrChart({
           )}
         </g>
       )}
-      {/* X 轴时间刻度（钟表时刻） */}
-      {[0, 0.25, 0.5, 0.75, 1].map((f) => (
-        <text
-          key={f}
-          x={PAD_L + f * (W - PAD_L - PAD_R)}
-          y={H - 8}
-          fontSize={10}
-          fill="#55565c"
-          textAnchor={f === 0 ? 'start' : f === 1 ? 'end' : 'middle'}
-        >
-          {clockAt(f)}
-        </text>
-      ))}
     </svg>
   );
 }

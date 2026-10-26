@@ -16,7 +16,7 @@ import {
 } from '../lib/data';
 import { bestRunForDistance } from '../lib/track';
 import { RouteThumb as Thumb } from '../components/SessionTile';
-import { SiteFooter, StatStrip } from '../components/sections';
+import { StatStrip } from '../components/sections';
 
 const fmtDuration = (seconds: number): string => {
   const total = Math.round(seconds);
@@ -422,8 +422,6 @@ export function Records({
           </tbody>
         </table>
       </section>
-
-      <SiteFooter />
     </>
   );
 }

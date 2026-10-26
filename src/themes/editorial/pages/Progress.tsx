@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Activity } from '@/types';
-import { SiteFooter, StatStrip } from '../components/sections';
+import { StatStrip } from '../components/sections';
 import {
   activitySeconds,
   activityYear,
@@ -346,8 +346,6 @@ export function Progress({ activities }: { activities: Activity[] }) {
           力量、攀岩这类运动没有配速信号，所以它们只计入上面的问题。诚实胜过取巧。
         </p>
       </section>
-
-      <SiteFooter />
     </>
   );
 }

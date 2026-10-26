@@ -639,12 +639,14 @@ a.ed-link {
   min-width: 0;
 }
 
-/* 图例小图标（swatch）：取自参考站原版 —— 28×28、muted 灰、不收缩 */
+/* 图例小图标（swatch）：取自参考站原版 —— 28×28、muted 灰、不收缩。
+   28px 盒比 20px 文字行高，上移 4px 让图标与第一行文字居中对齐 */
 .ed-glyph-legend .glyph-example {
   width: 28px;
   height: 28px;
   flex: 0 0 auto;
   display: block;
+  margin-top: -4px;
   overflow: visible;
   color: #8c8b85;
 }
@@ -825,6 +827,17 @@ a.ed-link {
   width: 100%;
   height: auto;
   margin-top: 18px;
+}
+
+/* 心率图可拖拽播放头（tabIndex=0）：鼠标点击不画焦点框，键盘操作仍保留 */
+.ed-hr-chart:focus {
+  outline: none;
+}
+
+.ed-hr-chart:focus-visible {
+  outline: 2px solid var(--ink-faint);
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 
 .ed-chart-svg text {
@@ -1675,15 +1688,6 @@ a.ed-link {
   --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
 }
 
-/* 日间模式：切换回 vert 的浅色默认值 */
-.ed-vert--day {
-  --surface: #e6eaee;
-  --surface-strong: #dce2e8;
-  --ink: #1b2a3a;
-  --muted: #5b6b7a;
-  --white: #ffffff;
-}
-
 .ed-vert-attribution-row {
   margin-top: 14px;
 }
@@ -2407,81 +2411,6 @@ table.ed-matrix {
   white-space: nowrap;
 }
 
-/* ── 页脚推荐（MORE FROM）───────────────────────────────────────── */
-
-.ed-site-footer {
-  margin-top: 72px;
-  border-top: 1px solid var(--hairline);
-  padding-top: 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.ed-site-footer .head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.ed-site-footer .label {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-  font-weight: 400;
-}
-.ed-site-footer .since {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--ink-muted);
-}
-.ed-site-footer .sites {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(197px, 1fr));
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.ed-site-footer .sites a {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px;
-  border: 1px solid var(--hairline);
-  border-radius: 8px;
-  color: inherit;
-  text-decoration: none;
-  transition: border-color 0.2s ease;
-}
-.ed-site-footer .sites a:hover {
-  border-color: var(--ink-muted);
-}
-.ed-site-footer .sites .name {
-  font-size: 15px;
-  font-weight: 700;
-}
-.ed-site-footer .sites .note {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--ink-secondary);
-}
-.ed-site-footer .social {
-  display: flex;
-  gap: 18px;
-}
-.ed-site-footer .social a {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--ink-muted);
-  text-decoration: none;
-}
-.ed-site-footer .social a:hover {
-  color: var(--ink);
-}
-
 /* ══════════ 反馈修复批次（参考站实测规格）══════════ */
 
 /* ── 页头：H1 + 下划线年份 tab（参考站 tabs）──────────────────── */
@@ -2753,12 +2682,6 @@ table.ed-matrix {
   fill: var(--ink-muted);
   font-family: var(--font-mono);
   font-size: 11px;
-}
-.ed-when .peak-ring {
-  stroke: var(--ink);
-  stroke-width: 2.5;
-  vector-effect: non-scaling-stroke;
-  pointer-events: none;
 }
 .ed-when .hover-ring {
   stroke: var(--ink-muted);

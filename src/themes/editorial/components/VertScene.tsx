@@ -52,13 +52,11 @@ export function VertScene({
   scene,
   scrub,
   onScrub,
-  night,
 }: {
   activity: Activity;
   scene: Scene;
   scrub: number | null;
   onScrub: (m: number | null) => void;
-  night: boolean;
 }) {
   const viewRef = useRef<TerrainViewHandle>(null);
   const [flat, setFlat] = useState(false);
@@ -82,7 +80,7 @@ export function VertScene({
 
   return (
     <div
-      className={`ed-vert ${night ? '' : 'ed-vert--day'}`}
+      className="ed-vert"
       style={{ ['--route' as string]: color }}
     >
       <div className="ed-vert-box">
@@ -93,15 +91,11 @@ export function VertScene({
           view={flat ? 'flat' : 'oblique'}
           ariaLabel={`${activity.name} 的 3D 地形`}
           scrub={scrub}
-          palette={
-            night
-              ? { surface: '#26282e', ink: '#8f929a' }
-              : { surface: '#e6eaee', ink: '#1b2a3a' }
-          }
+          palette={{ surface: '#26282e', ink: '#8f929a' }}
           routePalette={{
             route: color,
-            halo: night ? '#f0efec' : '#ffffff',
-            ink: night ? '#111214' : '#1b2a3a',
+            halo: '#f0efec',
+            ink: '#111214',
           }}
         />
       </div>

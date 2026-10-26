@@ -20,7 +20,6 @@ import { SessionGlyph } from '../components/SessionTile';
 import {
   Delta,
   PillLink,
-  SiteFooter,
   SportMixBar,
   StatTile,
 } from '../components/sections';
@@ -462,8 +461,6 @@ export function Home({
           );
         })}
       </section>
-
-      <SiteFooter />
     </>
   );
 }

@@ -183,8 +183,6 @@ export function ActivityDetail({
   );
   /** 全页面统一的播放头：0..1 的会话进度，驱动心率图/高程剖面/3D/路线海报 */
   const [scrubFrac, setScrubFrac] = useState<number | null>(null);
-  /** vert 地形昼夜主题（按钮与 Vert 按钮并排，对齐参考站） */
-  const [night, setNight] = useState(true);
   /** 会话时钟图例悬浮联动：高亮对应部分 */
   const [clockPart, setClockPart] = useState<'ring' | 'curve' | 'core' | null>(
     null
@@ -390,13 +388,6 @@ export function ActivityDetail({
               <a className="ed-btn" href="#vert-terrain">
                 在 Vert 中打开 ↗
               </a>
-              <button
-                className="ed-btn ed-btn--outline"
-                onClick={() => setNight((v) => !v)}
-                aria-pressed={!night}
-              >
-                {night ? '日间模式' : '夜间模式'}
-              </button>
             </div>
           )}
 
@@ -468,17 +459,18 @@ export function ActivityDetail({
                 <VertScene
                   activity={activity}
                   scene={scene}
-                  night={night}
+                  /* 剖面/3D 的米数用 scene 轨迹自身长度（与烘焙路线同源），
+                     用活动 watch 距离会在两者有出入时让回放走不到尽头 */
                   scrub={
-                    scrubFrac != null && activity.distance > 0
-                      ? scrubFrac * activity.distance
+                    scrubFrac != null && scene.summary.distance > 0
+                      ? scrubFrac * scene.summary.distance
                       : null
                   }
                   onScrub={(m) =>
                     setScrubFrac(
-                      m == null || !activity.distance
+                      m == null || !scene.summary.distance
                         ? null
-                        : m / activity.distance
+                        : m / scene.summary.distance
                     )
                   }
                 />

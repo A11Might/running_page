@@ -16,7 +16,6 @@ import { YearToDateChart } from '../components/charts';
 import {
   Delta,
   PillLink,
-  SiteFooter,
   SportMixBar,
   StatStrip,
   StatTile,
@@ -584,8 +583,6 @@ export function Years({
           </div>
         </div>
       </section>
-
-      <SiteFooter />
     </>
   );
 }

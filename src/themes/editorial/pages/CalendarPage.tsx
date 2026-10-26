@@ -13,7 +13,6 @@ import {
   totalsOf,
   type SportKey,
 } from '../lib/data';
-import { SiteFooter } from '../components/sections';
 
 interface DayCell {
   dateKey: string; // YYYY-MM-DD
@@ -27,6 +26,18 @@ interface DayCell {
 
 const WEEKDAY_ROWS = ['一', '', '三', '', '五', '', '日'];
 const ZH_WEEKDAY = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+/** 时钟色带的运动堆叠顺序（对齐参考站常量表顺序） */
+const CLOCK_SPORT_ORDER: SportKey[] = [
+  'swim',
+  'run',
+  'ride',
+  'hike',
+  'climb',
+  'tennis',
+  'strength',
+  'other',
+];
 
 /** 日期格提示（对齐参考站 "Mon 26 Jan · Strength 25 min, Run 23 min"） */
 function dayLabel(cell: DayCell): string {
@@ -400,8 +411,6 @@ export function CalendarPage({
           </div>
         </div>
       </section>
-
-      <SiteFooter />
     </>
   );
 }
@@ -443,11 +452,41 @@ function WhenClock({
     [hours]
   );
 
-  // 环带半径（56–150 中间偏内，参考站 ring 弧线位置）
-  const arcPath = (h: number): string => {
-    const r = 56 + (150 - 56) * 0.5;
-    const a0 = (h / 24) * Math.PI * 2;
-    const a1 = ((h + 1) / 24) * Math.PI * 2;
+  // 运动色带（对齐参考站）：每个小时从内圈 r58 起，每场次约 2.4px 厚往外叠，
+  // 运动间留 2px 缝隙；整段小时两侧留 0.7° 内边距
+  const bandPath = (hour: number, r0: number, r1: number): string => {
+    const pad = (0.7 * Math.PI) / 180;
+    const a0 = (hour / 24) * Math.PI * 2 + pad;
+    const a1 = ((hour + 1) / 24) * Math.PI * 2 - pad;
+    const p = (a: number, r: number) =>
+      `${(180 + r * Math.sin(a)).toFixed(2)} ${(180 - r * Math.cos(a)).toFixed(2)}`;
+    return `M${p(a0, r1)}A${r1.toFixed(2)} ${r1.toFixed(2)} 0 0 1 ${p(a1, r1)}L${p(a1, r0)}A${r0.toFixed(2)} ${r0.toFixed(2)} 0 0 0 ${p(a0, r0)}Z`;
+  };
+
+  const bands = useMemo(() => {
+    const R0 = 58;
+    const R_MAX = 148;
+    const maxCount = Math.max(...hours.map((h) => h.total), 1);
+    // 峰值归一化（对齐参考站）：最忙的小时顶到外圈，其余按比例；
+    // 上限 12px 防止全年只有一两次时色带过厚
+    const t = Math.min(12, (R_MAX - R0) / maxCount);
+    return hours.flatMap(({ hour, by }) => {
+      let r = R0;
+      return CLOCK_SPORT_ORDER.filter((s) => by.has(s)).map((s) => {
+        const r1 = r + (by.get(s) ?? 0) * t;
+        const d = bandPath(hour, r, r1);
+        r = r1 + 2;
+        return { sport: s, d };
+      });
+    });
+  }, [hours]);
+
+  // 悬停小时的指示弧：放在外圈外侧，避免与色带重叠
+  const ringPath = (h: number): string => {
+    const r = 156;
+    const pad = (0.7 * Math.PI) / 180;
+    const a0 = (h / 24) * Math.PI * 2 + pad;
+    const a1 = ((h + 1) / 24) * Math.PI * 2 - pad;
     const p = (a: number) =>
       `${(180 + r * Math.sin(a)).toFixed(2)} ${(180 - r * Math.cos(a)).toFixed(2)}`;
     return `M${p(a0)}A${r} ${r} 0 0 1 ${p(a1)}`;
@@ -494,19 +533,14 @@ function WhenClock({
               </text>
             );
           })}
-          {/* 峰值小时的弧线 */}
-          {peak.total > 0 && (
-            <path
-              d={arcPath(peak.hour)}
-              className="peak-ring"
-              fill="none"
-              strokeLinecap="butt"
-            />
-          )}
+          {/* 运动色带：每小时每个运动一条环形带 */}
+          {bands.map(({ sport, d }) => (
+            <path key={`${sport}-${d.slice(1, 20)}`} d={d} fill={`var(--sport-${sport})`} />
+          ))}
           {/* 悬停小时的弧线 */}
           {hoverHour != null && (
             <path
-              d={arcPath(hoverHour)}
+              d={ringPath(hoverHour)}
               className="hover-ring"
               fill="none"
               strokeLinecap="butt"

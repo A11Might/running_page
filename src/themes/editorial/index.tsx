@@ -126,7 +126,7 @@ function Editorial() {
               </a>
             ))}
             <a
-              href="https://github.com/A11Might"
+              href="https://a11might.github.io/"
               target="_blank"
               rel="noreferrer"
             >

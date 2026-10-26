@@ -1199,7 +1199,8 @@ a.ed-link {
 
 .ed-detail {
   display: grid;
-  grid-template-columns: minmax(300px, 520px) 1fr;
+  /* 左列 576：海报卡 28px 内边距后，路线图形本身约 518px，对齐参考站 */
+  grid-template-columns: minmax(300px, 576px) 1fr;
   gap: 40px;
   margin-top: 34px;
   align-items: start;
@@ -1626,7 +1627,10 @@ a.ed-link {
 
 .ed-vert-box {
   position: relative;
+  width: 100%;
   aspect-ratio: 16 / 9;
+  /* 参考站同款：宽屏下 16:9 被 420px 封顶成矮横幅，轨迹在 3D 地形里才不会显得过大 */
+  max-height: 420px;
   border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
   overflow: hidden;

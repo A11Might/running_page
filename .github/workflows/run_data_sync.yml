@@ -12,7 +12,8 @@ on:
         required: false
         default: "false"
   schedule:
-    - cron: "0 0 * * *"
+    # off-peak minute to avoid GitHub's top-of-hour schedule congestion/drops
+    - cron: "17 1 * * *"
   push:
     branches:
       - gh-page

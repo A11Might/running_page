@@ -194,7 +194,9 @@ def _fetch_streams(client, aid):
     return resp.json()
 
 
-def run_strava_web_sync(jwt, days=7, only_run=False):
+def run_strava_web_sync(
+    jwt, days=7, only_run=False, oldest_first=False, batch=1, batch_size=50
+):
     client = WebClient(jwt=jwt)
     print("Web login ok")
 
@@ -203,6 +205,51 @@ def run_strava_web_sync(jwt, days=7, only_run=False):
 
     # search_session_id: web client needs a fresh one
     sid = str(uuid.uuid4())
+
+    if oldest_first:
+        # Rate-limit-safe repair: a full newest-first sweep trips Strava's web
+        # 429 after ~50 stream fetches, stranding the oldest activities (the
+        # end of the queue). Instead, list everything in the window, then sync
+        # one bounded batch of the OLDEST activities per run.
+        models_all = []
+        page = 1
+        while True:
+            data = _fetch_json(
+                client, TRAINING_ACTIVITIES_URL.format(sid=sid, page=page)
+            )
+            models = data.get("models") or []
+            if not models:
+                break
+            models_all.extend(models)
+            total = data.get("total", 0)
+            if total and page * 20 >= total:
+                break
+            if page >= 500:  # safety cap against a misbehaving endpoint
+                break
+            page += 1
+            time.sleep(0.3)  # be gentle with rate limits
+        window = [
+            m
+            for m in models_all
+            if (m.get("start_date_local_raw") or 0) >= cutoff
+        ]
+        if only_run:
+            window = [m for m in window if m.get("sport_type") == "Run"]
+        window.sort(key=lambda m: m.get("start_date_local_raw") or 0)
+        lo, hi = (batch - 1) * batch_size, batch * batch_size
+        selected = window[lo:hi]
+        print(
+            f"oldest-first batch {batch} (size {batch_size}): "
+            f"activities {lo + 1}-{hi} of {len(window)} in window, "
+            f"{len(selected)} to sync"
+        )
+        total_fetched = 0
+        for i, raw in enumerate(selected):
+            if i:
+                time.sleep(2.5)  # pacing keeps the batch under the rate limit
+            _sync_one(client, session, raw)
+            total_fetched += 1
+        return _finalize(session, total_fetched)
 
     page = 1
     total_fetched = 0
@@ -330,6 +377,26 @@ if __name__ == "__main__":
         action="store_true",
         help="skip the list sync; fetch HR streams for stored activities missing one",
     )
+    parser.add_argument(
+        "--oldest-first",
+        dest="oldest_first",
+        action="store_true",
+        help="sync the OLDEST activities in the lookback window batch by batch "
+        "(see --batch/--batch-size) to stay under Strava's rate limit",
+    )
+    parser.add_argument(
+        "--batch",
+        type=int,
+        default=1,
+        help="1-based batch number used with --oldest-first (default 1)",
+    )
+    parser.add_argument(
+        "--batch-size",
+        dest="batch_size",
+        type=int,
+        default=50,
+        help="activities per batch with --oldest-first (default 50)",
+    )
     options = parser.parse_args()
     if options.backfill_hr:
         client = WebClient(jwt=options.jwt)
@@ -338,4 +405,11 @@ if __name__ == "__main__":
         count = _backfill_hr(client, session)
         _finalize(session, count)
         sys.exit(0)
-    run_strava_web_sync(options.jwt, days=options.days, only_run=options.only_run)
+    run_strava_web_sync(
+        options.jwt,
+        days=options.days,
+        only_run=options.only_run,
+        oldest_first=options.oldest_first,
+        batch=options.batch,
+        batch_size=options.batch_size,
+    )

@@ -11,6 +11,10 @@ on:
         description: "Only backfill HR streams for stored activities (skip list sync)"
         required: false
         default: "false"
+      oldest_batch:
+        description: "If set (e.g. 1), sync that batch of 50 OLDEST activities in the days window first - rate-limit safe repair mode"
+        required: false
+        default: ""
   schedule:
     # off-peak minute to avoid GitHub's top-of-hour schedule congestion/drops
     - cron: "17 1 * * *"
@@ -163,6 +167,8 @@ jobs:
         run: |
           if [ "${{ github.event.inputs.backfill_hr }}" = "true" ]; then
             python run_page/strava_web_sync.py "${{ secrets.STRAVA_JWT }}" --backfill-hr
+          elif [ -n "${{ github.event.inputs.oldest_batch }}" ]; then
+            python run_page/strava_web_sync.py "${{ secrets.STRAVA_JWT }}" --days "${{ github.event.inputs.days || vars.STRAVA_WEB_DAYS || '7' }}" --oldest-first --batch "${{ github.event.inputs.oldest_batch }}"
           else
             python run_page/strava_web_sync.py "${{ secrets.STRAVA_JWT }}" --days "${{ github.event.inputs.days || vars.STRAVA_WEB_DAYS || '7' }}"
           fi

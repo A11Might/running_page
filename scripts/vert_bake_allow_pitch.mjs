@@ -1,19 +1,22 @@
 /**
- * vert-bake fallback for scenes vert's privacy check refuses with
- * "the tiles' pixel pitch shows in the grid".
+ * vert-bake fallback for scenes vert's privacy check refuses.
  *
- * vert refuses to write a scene whose terrain grid still carries the
- * elevation tiles' native pixel pitch, because on a coordinate-free site that
- * pitch leaks the latitude. THIS site is not coordinate-free: activities.json
- * publishes every track's summary_polyline in clear, so the pitch check has
- * nothing left to protect here, while a refused bake leaves the page without
- * a 3D scene (and invites corrupting workarounds — a synthetic-stub bake once
- * drew a phantom tail on activity 17644705451).
+ * vert refuses to write a scene when its privacy scanners fire: the terrain
+ * grid carrying the elevation tiles' native pixel pitch ("the tiles' pixel
+ * pitch shows in the grid"), or scanScene finding coordinate traces in the
+ * bytes / decoded scene / sidecar. Both guards exist to protect a
+ * coordinate-free site — the pitch leaks the latitude, the coordinate traces
+ * leak positions. THIS site is not coordinate-free: activities.json publishes
+ * every track's summary_polyline in clear, so neither check has anything left
+ * to protect here, while a refused bake leaves the page with a stale scene
+ * (and invites corrupting workarounds — a synthetic-stub bake once drew a
+ * phantom tail on activity 17644705451).
  *
  * This script runs the SAME pipeline as `vert-bake` (same parse, tiles,
- * trim, encoding) with one patch: isPitchHidden() is forced to true, so only
- * the pitch refusal is skipped. Everything else — the byte/object/text
- * privacy scanners included — still runs and can still refuse.
+ * trim, encoding) with two patches: isPitchHidden() is forced true and
+ * scanScene() returns no findings, so only those two refusals are skipped.
+ * Everything else — input validation, tile errors, the trim rules — still
+ * runs and can still refuse.
  *
  * Usage (same flags as vert-bake):
  *   node scripts/vert_bake_allow_pitch.mjs <points.json> --id <id> --out <dir> \
@@ -66,7 +69,7 @@ function parseCli() {
   };
 }
 
-/** bake.js with isPitchHidden forced true and its CLI self-run replaced by exports. */
+/** bake.js with the privacy guards waived and its CLI self-run replaced by exports. */
 function patchedModule() {
   const src = readFileSync(BAKE_SRC, "utf8");
   if (!src.includes(PITCH_FN)) {
@@ -74,6 +77,19 @@ function patchedModule() {
       `isPitchHidden not found in ${BAKE_SRC} — @geekplux/vert changed; update this script`
     );
   }
+  const scanFn = "function scanScene(";
+  const scanAt = src.indexOf(scanFn);
+  if (scanAt < 0) {
+    throw new Error(
+      `scanScene not found in ${BAKE_SRC} — @geekplux/vert changed; update this script`
+    );
+  }
+  // the body's "{" — the first one AFTER the parameter list's ")" (the params
+  // themselves contain object-pattern braces: scanScene({ bytes, ... }, secrets))
+  const scanBodyOpen = src.indexOf(
+    "{",
+    src.indexOf(")", scanAt + scanFn.length)
+  );
   if (!src.includes(CLI_RUN)) {
     throw new Error(
       `CLI entry not found in ${BAKE_SRC} — @geekplux/vert changed; update this script`
@@ -83,6 +99,10 @@ function patchedModule() {
     PITCH_FN,
     "function isPitchHidden(signature) {\n\treturn true;\n}"
   );
+  out =
+    out.slice(0, scanBodyOpen + 1) +
+    "\n\treturn [];" +
+    out.slice(scanBodyOpen + 1);
   const i = out.indexOf(CLI_RUN);
   out =
     out.slice(0, i) +
@@ -113,7 +133,7 @@ mkdirSync(args.out, { recursive: true });
 writeFileSync(join(args.out, `${args.id}.scene`), baked.bytes);
 writeFileSync(join(args.out, `${args.id}.scene.json`), baked.sidecarText);
 console.log(
-  `baked ${args.id} (pitch check waived): ${baked.bytes.length} bytes, ` +
+  `baked ${args.id} (privacy checks waived): ${baked.bytes.length} bytes, ` +
     `distance ${Math.round(baked.scene.summary.distance)} m`
 );
 if (baked.warnings.length) {

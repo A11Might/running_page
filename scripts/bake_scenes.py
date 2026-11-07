@@ -6,13 +6,14 @@ summary_polyline, writes a points JSON and runs `vert-bake` (from
 coordinate-free (height grid + local-metre route), so they are safe to
 commit. Resumable: activities whose .scene already exists are skipped.
 
-Some terrains fail vert's privacy check with "the tiles' pixel pitch shows
-in the grid" (the check guards a coordinate-free site; this site publishes
-full polylines in activities.json, so it has nothing to protect here). Those
-bakes fall back to scripts/vert_bake_allow_pitch.mjs — the same pipeline
-with only the pitch refusal waived. NEVER pad the track itself to dodge the
-check: a synthetic stub baked into activity 17644705451 once drew a phantom
-tail on the 3D map.
+Some terrains fail vert's privacy check ("the tiles' pixel pitch shows in
+the grid", or coordinate traces in the bytes/decoded scene/sidecar — the
+check guards a coordinate-free site; this site publishes full polylines in
+activities.json, so it has nothing to protect here). Those bakes fall back
+to scripts/vert_bake_allow_pitch.mjs — the same pipeline with only those
+privacy refusals waived. NEVER pad the track itself to dodge the check: a
+synthetic stub baked into activity 17644705451 once drew a phantom tail on
+the 3D map.
 
 Usage:
     python3 scripts/bake_scenes.py [--jobs 4] [--force] [--only RUN_ID ...]
@@ -96,9 +97,11 @@ def bake_one(args_tuple):
         if proc.returncode == 0:
             return run_id, "ok"
         message = (proc.stderr or proc.stdout).strip()
-        if "pixel pitch" in message:
-            # 隐私 pitch 检查在本站不适用（activities.json 本就公开坐标），
-            # 用等价管线重烘焙，仅豁免 pitch 拒绝（见 vert_bake_allow_pitch.mjs）
+        if "privacy check refused" in message:
+            # vert's privacy scanners (pixel pitch, coordinate traces) guard a
+            # coordinate-free site; this one publishes polylines in
+            # activities.json, so both are waived and the bake is rerun through
+            # the equivalent pipeline (see vert_bake_allow_pitch.mjs)
             fallback = subprocess.run(
                 [
                     "node",

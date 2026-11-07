@@ -459,18 +459,29 @@ export function ActivityDetail({
                 <VertScene
                   activity={activity}
                   scene={scene}
-                  /* 剖面/3D 的米数用 scene 轨迹自身长度（与烘焙路线同源），
-                     用活动 watch 距离会在两者有出入时让回放走不到尽头 */
+                  /* 剖面/3D 的 scrub 米数定义在“绘制域”上：route.distance 从
+                     trim.start 起、到 trim.start + drawnLength 止。会话进度
+                     (0..1) 必须映射进这个域——若用全长 summary.distance，
+                     游标会提前钉在末端、反向拖拽又走不到尽头；短活动上 trim
+                     占比大（1km 跑 ±11%），错位最明显 */
                   scrub={
-                    scrubFrac != null && scene.summary.distance > 0
-                      ? scrubFrac * scene.summary.distance
+                    scrubFrac != null && scene.summary.drawnLength > 0
+                      ? scene.summary.trim.start +
+                        scrubFrac * scene.summary.drawnLength
                       : null
                   }
                   onScrub={(m) =>
                     setScrubFrac(
-                      m == null || !scene.summary.distance
+                      m == null || !scene.summary.drawnLength
                         ? null
-                        : m / scene.summary.distance
+                        : Math.min(
+                            Math.max(
+                              (m - scene.summary.trim.start) /
+                                scene.summary.drawnLength,
+                              0
+                            ),
+                            1
+                          )
                     )
                   }
                 />
